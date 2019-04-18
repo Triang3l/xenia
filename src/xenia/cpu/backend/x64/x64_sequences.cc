@@ -1926,26 +1926,36 @@ struct MUL_ADD_F32
                                    }
                                  });
     } else {
+      // Still double rounding, but more precision between the multiplication
+      // and the addition.
+      // https://randomascii.wordpress.com/2019/03/20/exercises-in-emulation-xbox-360s-fma-instruction/
+      Xmm src1;
+      if (i.src1.is_constant) {
+        src1 = e.xmm0;
+        e.LoadConstantXmm(src1, i.src1.constant());
+      } else {
+        src1 = i.src1;
+      }
+      e.vcvtss2sd(e.xmm0, src1);
+      Xmm src2;
+      if (i.src2.is_constant) {
+        src2 = e.xmm1;
+        e.LoadConstantXmm(src2, i.src2.constant());
+      } else {
+        src2 = i.src2;
+      }
+      e.vcvtss2sd(e.xmm1, src2);
+      e.vmulsd(e.xmm0, e.xmm0, e.xmm1);
       Xmm src3;
       if (i.src3.is_constant) {
         src3 = e.xmm1;
         e.LoadConstantXmm(src3, i.src3.constant());
       } else {
-        // If i.dest == i.src3, back up i.src3 so we don't overwrite it.
         src3 = i.src3;
-        if (i.dest == i.src3) {
-          e.vmovss(e.xmm1, i.src3);
-          src3 = e.xmm1;
-        }
       }
-
-      // Multiply operation is commutative.
-      EmitCommutativeBinaryXmmOp(
-          e, i, [&i](X64Emitter& e, Xmm dest, Xmm src1, Xmm src2) {
-            e.vmulss(dest, src1, src2);  // $0 = $1 * $2
-          });
-
-      e.vaddss(i.dest, i.dest, src3);  // $0 = $1 + $2
+      e.vcvtss2sd(e.xmm1, src3);
+      e.vaddsd(e.xmm0, e.xmm0, e.xmm1);
+      e.vcvtsd2ss(i.dest, e.xmm0);
     }
   }
 };
@@ -2027,26 +2037,36 @@ struct MUL_ADD_V128
                                    }
                                  });
     } else {
+      // Still double rounding, but more precision between the multiplication
+      // and the addition.
+      // https://randomascii.wordpress.com/2019/03/20/exercises-in-emulation-xbox-360s-fma-instruction/
+      Xmm src1;
+      if (i.src1.is_constant) {
+        src1 = e.xmm0;
+        e.LoadConstantXmm(src1, i.src1.constant());
+      } else {
+        src1 = i.src1;
+      }
+      e.vcvtps2pd(e.ymm0, src1);
+      Xmm src2;
+      if (i.src2.is_constant) {
+        src2 = e.xmm1;
+        e.LoadConstantXmm(src2, i.src2.constant());
+      } else {
+        src2 = i.src2;
+      }
+      e.vcvtps2pd(e.ymm1, src2);
+      e.vmulpd(e.ymm0, e.ymm0, e.ymm1);
       Xmm src3;
       if (i.src3.is_constant) {
         src3 = e.xmm1;
         e.LoadConstantXmm(src3, i.src3.constant());
       } else {
-        // If i.dest == i.src3, back up i.src3 so we don't overwrite it.
         src3 = i.src3;
-        if (i.dest == i.src3) {
-          e.vmovdqa(e.xmm1, i.src3);
-          src3 = e.xmm1;
-        }
       }
-
-      // Multiply operation is commutative.
-      EmitCommutativeBinaryXmmOp(
-          e, i, [&i](X64Emitter& e, Xmm dest, Xmm src1, Xmm src2) {
-            e.vmulps(dest, src1, src2);  // $0 = $1 * $2
-          });
-
-      e.vaddps(i.dest, i.dest, src3);  // $0 = $1 + $2
+      e.vcvtps2pd(e.ymm1, src3);
+      e.vaddpd(e.ymm0, e.ymm0, e.ymm1);
+      e.vcvtpd2ps(i.dest, e.ymm0);
     }
   }
 };
@@ -2090,26 +2110,36 @@ struct MUL_SUB_F32
                                    }
                                  });
     } else {
+      // Still double rounding, but more precision between the multiplication
+      // and the addition.
+      // https://randomascii.wordpress.com/2019/03/20/exercises-in-emulation-xbox-360s-fma-instruction/
+      Xmm src1;
+      if (i.src1.is_constant) {
+        src1 = e.xmm0;
+        e.LoadConstantXmm(src1, i.src1.constant());
+      } else {
+        src1 = i.src1;
+      }
+      e.vcvtss2sd(e.xmm0, src1);
+      Xmm src2;
+      if (i.src2.is_constant) {
+        src2 = e.xmm1;
+        e.LoadConstantXmm(src2, i.src2.constant());
+      } else {
+        src2 = i.src2;
+      }
+      e.vcvtss2sd(e.xmm1, src2);
+      e.vmulsd(e.xmm0, e.xmm0, e.xmm1);
       Xmm src3;
       if (i.src3.is_constant) {
         src3 = e.xmm1;
         e.LoadConstantXmm(src3, i.src3.constant());
       } else {
-        // If i.dest == i.src3, back up i.src3 so we don't overwrite it.
         src3 = i.src3;
-        if (i.dest == i.src3) {
-          e.vmovss(e.xmm1, i.src3);
-          src3 = e.xmm1;
-        }
       }
-
-      // Multiply operation is commutative.
-      EmitCommutativeBinaryXmmOp(
-          e, i, [&i](X64Emitter& e, Xmm dest, Xmm src1, Xmm src2) {
-            e.vmulss(dest, src1, src2);  // $0 = $1 * $2
-          });
-
-      e.vsubss(i.dest, i.dest, src3);  // $0 = $1 - $2
+      e.vcvtss2sd(e.xmm1, src3);
+      e.vsubsd(e.xmm0, e.xmm0, e.xmm1);
+      e.vcvtsd2ss(i.dest, e.xmm0);
     }
   }
 };
@@ -2189,26 +2219,36 @@ struct MUL_SUB_V128
                                    }
                                  });
     } else {
+      // Still double rounding, but more precision between the multiplication
+      // and the addition.
+      // https://randomascii.wordpress.com/2019/03/20/exercises-in-emulation-xbox-360s-fma-instruction/
+      Xmm src1;
+      if (i.src1.is_constant) {
+        src1 = e.xmm0;
+        e.LoadConstantXmm(src1, i.src1.constant());
+      } else {
+        src1 = i.src1;
+      }
+      e.vcvtps2pd(e.ymm0, src1);
+      Xmm src2;
+      if (i.src2.is_constant) {
+        src2 = e.xmm1;
+        e.LoadConstantXmm(src2, i.src2.constant());
+      } else {
+        src2 = i.src2;
+      }
+      e.vcvtps2pd(e.ymm1, src2);
+      e.vmulpd(e.ymm0, e.ymm0, e.ymm1);
       Xmm src3;
       if (i.src3.is_constant) {
         src3 = e.xmm1;
         e.LoadConstantXmm(src3, i.src3.constant());
       } else {
-        // If i.dest == i.src3, back up i.src3 so we don't overwrite it.
         src3 = i.src3;
-        if (i.dest == i.src3) {
-          e.vmovdqa(e.xmm1, i.src3);
-          src3 = e.xmm1;
-        }
       }
-
-      // Multiply operation is commutative.
-      EmitCommutativeBinaryXmmOp(
-          e, i, [&i](X64Emitter& e, Xmm dest, Xmm src1, Xmm src2) {
-            e.vmulps(dest, src1, src2);  // $0 = $1 * $2
-          });
-
-      e.vsubps(i.dest, i.dest, src3);  // $0 = $1 - $2
+      e.vcvtps2pd(e.ymm1, src3);
+      e.vsubpd(e.ymm0, e.ymm0, e.ymm1);
+      e.vcvtpd2ps(i.dest, e.ymm0);
     }
   }
 };

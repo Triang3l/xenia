@@ -529,17 +529,17 @@ void Value::MulAdd(Value* dest, Value* value1, Value* value2, Value* value3) {
     case VEC128_TYPE:
       for (int i = 0; i < 4; i++) {
         dest->constant.v128.f32[i] =
-            (value1->constant.v128.f32[i] * value2->constant.v128.f32[i]) +
-            value3->constant.v128.f32[i];
+            std::fma(value1->constant.v128.f32[i], value2->constant.v128.f32[i],
+                     value3->constant.v128.f32[i]);
       }
       break;
     case FLOAT32_TYPE:
-      dest->constant.f32 =
-          (value1->constant.f32 * value2->constant.f32) + value3->constant.f32;
+      dest->constant.f32 = std::fma(value1->constant.f32, value2->constant.f32,
+                                    value3->constant.f32);
       break;
     case FLOAT64_TYPE:
-      dest->constant.f64 =
-          (value1->constant.f64 * value2->constant.f64) + value3->constant.f64;
+      dest->constant.f64 = std::fma(value1->constant.f64, value2->constant.f64,
+                                    value3->constant.f64);
       break;
     default:
       assert_unhandled_case(dest->type);
@@ -552,17 +552,17 @@ void Value::MulSub(Value* dest, Value* value1, Value* value2, Value* value3) {
     case VEC128_TYPE:
       for (int i = 0; i < 4; i++) {
         dest->constant.v128.f32[i] =
-            (value1->constant.v128.f32[i] * value2->constant.v128.f32[i]) -
-            value3->constant.v128.f32[i];
+            std::fma(value1->constant.v128.f32[i], value2->constant.v128.f32[i],
+                     -value3->constant.v128.f32[i]);
       }
       break;
     case FLOAT32_TYPE:
-      dest->constant.f32 =
-          (value1->constant.f32 * value2->constant.f32) - value3->constant.f32;
+      dest->constant.f32 = std::fma(value1->constant.f32, value2->constant.f32,
+                                    -value3->constant.f32);
       break;
     case FLOAT64_TYPE:
-      dest->constant.f64 =
-          (value1->constant.f64 * value2->constant.f64) - value3->constant.f64;
+      dest->constant.f64 = std::fma(value1->constant.f64, value2->constant.f64,
+                                    -value3->constant.f64);
       break;
     default:
       assert_unhandled_case(dest->type);
