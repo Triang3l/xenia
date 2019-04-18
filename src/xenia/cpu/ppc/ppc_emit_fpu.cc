@@ -29,9 +29,15 @@ using xe::cpu::hir::Value;
 // https://github.com/mamedev/historic-mame/blob/master/src/emu/cpu/powerpc/ppc_ops.c
 // The correctness of that code is not reflected here yet -_-
 
-// Enable rounding numbers to single precision as required.
-// This adds a bunch of work per operation and I'm not sure it's required.
-#define ROUND_TO_SINGLE
+// The single-precision (f...s) instructions are implemented in accordance with
+// "4.3.5.1 Single-Precision Operands" of
+// https://arcb.csc.ncsu.edu/~mueller/cluster/ps3/SDK3.0/docs/arch/PPC_Vers202_Book1_public.pdf
+// - Using 32-bit host instructions rather than 64-bit + post-conversion to
+//   make sure rounding is performed only once, not twice (first to 64-bit, then
+//   to 32-bit).
+// - Pre-converting the operands from double to single - this is always exact
+//   because PowerPC assumes operands are representable as single-precision,
+//   otherwise behavior is undefined.
 
 // Floating-point arithmetic (A-8)
 
@@ -45,8 +51,9 @@ int InstrEmit_faddx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_faddsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- (frA) + (frB)
-  Value* v = f.Add(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRB));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v = f.Convert(f.Add(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                             f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE)),
+                       FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
@@ -62,8 +69,9 @@ int InstrEmit_fdivx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fdivsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- frA / frB
-  Value* v = f.Div(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRB));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v = f.Convert(f.Div(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                             f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE)),
+                       FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
@@ -79,8 +87,9 @@ int InstrEmit_fmulx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fmulsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- (frA) x (frC)
-  Value* v = f.Mul(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRC));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v = f.Convert(f.Mul(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                             f.Convert(f.LoadFPR(i.A.FRC), FLOAT32_TYPE)),
+                       FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
@@ -88,6 +97,9 @@ int InstrEmit_fmulsx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fresx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- 1.0 / (frB)
+  // Double precision operand, single precision estimate result (1/256
+  // precision).
+  // TODO(Triang3l): Implement according to the specification.
   Value* v = f.Convert(f.Div(f.LoadConstantFloat32(1.0f),
                              f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE)),
                        FLOAT64_TYPE);
@@ -115,8 +127,9 @@ int InstrEmit_fsubx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fsubsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- (frA) - (frB)
-  Value* v = f.Sub(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRB));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v = f.Convert(f.Sub(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                             f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE)),
+                       FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
@@ -143,8 +156,10 @@ int InstrEmit_fsqrtx(PPCHIRBuilder& f, const InstrData& i) {
 }
 
 int InstrEmit_fsqrtsx(PPCHIRBuilder& f, const InstrData& i) {
-  // Single precision:
+  // Single precision result:
   // frD <- sqrt(frB)
+  // TODO(Triang3l): Find out whether the operand is assumed to be
+  // double-precision or single-precision.
   Value* v = f.Sqrt(f.LoadFPR(i.A.FRB));
   v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
@@ -165,9 +180,10 @@ int InstrEmit_fmaddx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fmaddsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- (frA x frC) + frB
-  Value* v =
-      f.MulAdd(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRC), f.LoadFPR(i.A.FRB));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v = f.Convert(f.MulAdd(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                                f.Convert(f.LoadFPR(i.A.FRC), FLOAT32_TYPE),
+                                f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE)),
+                       FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
@@ -184,9 +200,10 @@ int InstrEmit_fmsubx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fmsubsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- (frA x frC) - frB
-  Value* v =
-      f.MulSub(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRC), f.LoadFPR(i.A.FRB));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v = f.Convert(f.MulSub(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                                f.Convert(f.LoadFPR(i.A.FRC), FLOAT32_TYPE),
+                                f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE)),
+                       FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
@@ -203,9 +220,11 @@ int InstrEmit_fnmaddx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fnmaddsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- -([frA x frC] + frB)
-  Value* v = f.Neg(
-      f.MulAdd(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRC), f.LoadFPR(i.A.FRB)));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v =
+      f.Convert(f.Neg(f.MulAdd(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                               f.Convert(f.LoadFPR(i.A.FRC), FLOAT32_TYPE),
+                               f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE))),
+                FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
@@ -222,9 +241,11 @@ int InstrEmit_fnmsubx(PPCHIRBuilder& f, const InstrData& i) {
 
 int InstrEmit_fnmsubsx(PPCHIRBuilder& f, const InstrData& i) {
   // frD <- -([frA x frC] - frB)
-  Value* v = f.Neg(
-      f.MulSub(f.LoadFPR(i.A.FRA), f.LoadFPR(i.A.FRC), f.LoadFPR(i.A.FRB)));
-  v = f.Convert(f.Convert(v, FLOAT32_TYPE), FLOAT64_TYPE);
+  Value* v =
+      f.Convert(f.Neg(f.MulSub(f.Convert(f.LoadFPR(i.A.FRA), FLOAT32_TYPE),
+                               f.Convert(f.LoadFPR(i.A.FRC), FLOAT32_TYPE),
+                               f.Convert(f.LoadFPR(i.A.FRB), FLOAT32_TYPE))),
+                FLOAT64_TYPE);
   f.StoreFPR(i.A.FRT, v);
   f.UpdateFPSCR(v, i.A.Rc);
   return 0;
