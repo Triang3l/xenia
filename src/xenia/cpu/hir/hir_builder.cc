@@ -1713,26 +1713,26 @@ Value* HIRBuilder::Log2(Value* value) {
   return i->dest;
 }
 
-Value* HIRBuilder::DotProduct3(Value* value1, Value* value2) {
+Value* HIRBuilder::DotProduct3Splat(Value* value1, Value* value2) {
   ASSERT_VECTOR_TYPE(value1);
   ASSERT_VECTOR_TYPE(value2);
   ASSERT_TYPES_EQUAL(value1, value2);
 
   Instr* i =
-      AppendInstr(OPCODE_DOT_PRODUCT_3_info, 0, AllocValue(FLOAT32_TYPE));
+      AppendInstr(OPCODE_DOT_PRODUCT_3_SPLAT_info, 0, AllocValue(value1->type));
   i->set_src1(value1);
   i->set_src2(value2);
   i->src3.value = NULL;
   return i->dest;
 }
 
-Value* HIRBuilder::DotProduct4(Value* value1, Value* value2) {
+Value* HIRBuilder::DotProduct4Splat(Value* value1, Value* value2) {
   ASSERT_VECTOR_TYPE(value1);
   ASSERT_VECTOR_TYPE(value2);
   ASSERT_TYPES_EQUAL(value1, value2);
 
   Instr* i =
-      AppendInstr(OPCODE_DOT_PRODUCT_4_info, 0, AllocValue(FLOAT32_TYPE));
+      AppendInstr(OPCODE_DOT_PRODUCT_4_SPLAT_info, 0, AllocValue(value1->type));
   i->set_src1(value1);
   i->set_src2(value2);
   i->src3.value = NULL;

@@ -2508,7 +2508,7 @@ struct LOG2_V128 : Sequence<LOG2_V128, I<OPCODE_LOG2, V128Op, V128Op>> {
 };
 EMITTER_OPCODE_TABLE(OPCODE_LOG2, LOG2_F32, LOG2_F64, LOG2_V128);
 
-struct DOT_PRODUCT_V128 {
+struct DOT_PRODUCT_SPLAT_V128 {
   static void Emit(X64Emitter& e, Xmm dest, Xmm src1, Xmm src2, uint8_t imm) {
     // TODO(benvanik): apparently this is very slow
     // - find alternative?
@@ -2551,36 +2551,36 @@ struct DOT_PRODUCT_V128 {
 };
 
 // ============================================================================
-// OPCODE_DOT_PRODUCT_3
+// OPCODE_DOT_PRODUCT_3_SPLAT
 // ============================================================================
-struct DOT_PRODUCT_3_V128
-    : Sequence<DOT_PRODUCT_3_V128,
-               I<OPCODE_DOT_PRODUCT_3, F32Op, V128Op, V128Op>> {
+struct DOT_PRODUCT_3_SPLAT_V128
+    : Sequence<DOT_PRODUCT_3_SPLAT_V128,
+               I<OPCODE_DOT_PRODUCT_3_SPLAT, V128Op, V128Op, V128Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
     // https://msdn.microsoft.com/en-us/library/bb514054(v=vs.90).aspx
     EmitCommutativeBinaryXmmOp(
         e, i, [](X64Emitter& e, Xmm dest, Xmm src1, Xmm src2) {
-          DOT_PRODUCT_V128::Emit(e, dest, src1, src2, 0b01110001);
+          DOT_PRODUCT_SPLAT_V128::Emit(e, dest, src1, src2, 0b01111111);
         });
   }
 };
-EMITTER_OPCODE_TABLE(OPCODE_DOT_PRODUCT_3, DOT_PRODUCT_3_V128);
+EMITTER_OPCODE_TABLE(OPCODE_DOT_PRODUCT_3_SPLAT, DOT_PRODUCT_3_SPLAT_V128);
 
 // ============================================================================
-// OPCODE_DOT_PRODUCT_4
+// OPCODE_DOT_PRODUCT_4_SPLAT
 // ============================================================================
-struct DOT_PRODUCT_4_V128
-    : Sequence<DOT_PRODUCT_4_V128,
-               I<OPCODE_DOT_PRODUCT_4, F32Op, V128Op, V128Op>> {
+struct DOT_PRODUCT_4_SPLAT_V128
+    : Sequence<DOT_PRODUCT_4_SPLAT_V128,
+               I<OPCODE_DOT_PRODUCT_4_SPLAT, V128Op, V128Op, V128Op>> {
   static void Emit(X64Emitter& e, const EmitArgType& i) {
     // https://msdn.microsoft.com/en-us/library/bb514054(v=vs.90).aspx
     EmitCommutativeBinaryXmmOp(
         e, i, [](X64Emitter& e, Xmm dest, Xmm src1, Xmm src2) {
-          DOT_PRODUCT_V128::Emit(e, dest, src1, src2, 0b11110001);
+          DOT_PRODUCT_SPLAT_V128::Emit(e, dest, src1, src2, 0b11111111);
         });
   }
 };
-EMITTER_OPCODE_TABLE(OPCODE_DOT_PRODUCT_4, DOT_PRODUCT_4_V128);
+EMITTER_OPCODE_TABLE(OPCODE_DOT_PRODUCT_4_SPLAT, DOT_PRODUCT_4_SPLAT_V128);
 
 // ============================================================================
 // OPCODE_AND

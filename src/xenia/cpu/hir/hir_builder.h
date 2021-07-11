@@ -220,8 +220,8 @@ class HIRBuilder {
   Value* Recip(Value* value);
   Value* Pow2(Value* value);
   Value* Log2(Value* value);
-  Value* DotProduct3(Value* value1, Value* value2);
-  Value* DotProduct4(Value* value1, Value* value2);
+  Value* DotProduct3Splat(Value* value1, Value* value2);
+  Value* DotProduct4Splat(Value* value1, Value* value2);
 
   Value* And(Value* value1, Value* value2);
   Value* Or(Value* value1, Value* value2);

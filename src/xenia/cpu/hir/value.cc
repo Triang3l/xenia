@@ -1380,18 +1380,15 @@ void Value::VectorSub(Value* other, TypeName type, bool is_unsigned,
   }
 }
 
-void Value::DotProduct3(Value* other) {
+void Value::DotProduct3Splat(Value* other) {
   assert_true(this->type == VEC128_TYPE && other->type == VEC128_TYPE);
   switch (type) {
     case VEC128_TYPE: {
-      alignas(16) float result[4];
       __m128 src1 = _mm_load_ps(constant.v128.f32);
       __m128 src2 = _mm_load_ps(other->constant.v128.f32);
-      __m128 dest = _mm_dp_ps(src1, src2, 0b01110001);
-      _mm_store_ps(result, dest);
-      // TODO(rick): is this sane?
-      type = FLOAT32_TYPE;
-      constant.f32 = result[0];
+      __m128 dest = _mm_dp_ps(src1, src2, 0b01111111);
+      // TODO(Triang3l): Return NaN in case of overflow.
+      _mm_store_ps(constant.v128.f32, dest);
     } break;
     default:
       assert_unhandled_case(type);
@@ -1399,18 +1396,15 @@ void Value::DotProduct3(Value* other) {
   }
 }
 
-void Value::DotProduct4(Value* other) {
+void Value::DotProduct4Splat(Value* other) {
   assert_true(this->type == VEC128_TYPE && other->type == VEC128_TYPE);
   switch (type) {
     case VEC128_TYPE: {
-      alignas(16) float result[4];
       __m128 src1 = _mm_load_ps(constant.v128.f32);
       __m128 src2 = _mm_load_ps(other->constant.v128.f32);
-      __m128 dest = _mm_dp_ps(src1, src2, 0b11110001);
-      _mm_store_ps(result, dest);
-      // TODO(rick): is this sane?
-      type = FLOAT32_TYPE;
-      constant.f32 = result[0];
+      __m128 dest = _mm_dp_ps(src1, src2, 0b11111111);
+      // TODO(Triang3l): Return NaN in case of overflow.
+      _mm_store_ps(constant.v128.f32, dest);
     } break;
     default:
       assert_unhandled_case(type);

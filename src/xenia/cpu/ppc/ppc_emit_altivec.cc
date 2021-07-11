@@ -1084,8 +1084,7 @@ int InstrEmit_vmsumuhs(PPCHIRBuilder& f, const InstrData& i) {
 int InstrEmit_vmsum3fp128(PPCHIRBuilder& f, const InstrData& i) {
   // Dot product XYZ.
   // (VD.xyzw) = (VA.x * VB.x) + (VA.y * VB.y) + (VA.z * VB.z)
-  Value* v = f.DotProduct3(f.LoadVR(VX128_VA128), f.LoadVR(VX128_VB128));
-  v = f.Splat(v, VEC128_TYPE);
+  Value* v = f.DotProduct3Splat(f.LoadVR(VX128_VA128), f.LoadVR(VX128_VB128));
   f.StoreVR(VX128_VD128, v);
   return 0;
 }
@@ -1093,8 +1092,7 @@ int InstrEmit_vmsum3fp128(PPCHIRBuilder& f, const InstrData& i) {
 int InstrEmit_vmsum4fp128(PPCHIRBuilder& f, const InstrData& i) {
   // Dot product XYZW.
   // (VD.xyzw) = (VA.x * VB.x) + (VA.y * VB.y) + (VA.z * VB.z) + (VA.w * VB.w)
-  Value* v = f.DotProduct4(f.LoadVR(VX128_VA128), f.LoadVR(VX128_VB128));
-  v = f.Splat(v, VEC128_TYPE);
+  Value* v = f.DotProduct4Splat(f.LoadVR(VX128_VA128), f.LoadVR(VX128_VB128));
   f.StoreVR(VX128_VD128, v);
   return 0;
 }

@@ -534,8 +534,8 @@ class Value {
   void VectorRol(Value* other, TypeName type);
   void VectorAdd(Value* other, TypeName type, bool is_unsigned, bool saturate);
   void VectorSub(Value* other, TypeName type, bool is_unsigned, bool saturate);
-  void DotProduct3(Value* other);
-  void DotProduct4(Value* other);
+  void DotProduct3Splat(Value* other);
+  void DotProduct4Splat(Value* other);
   void VectorAverage(Value* other, TypeName type, bool is_unsigned,
                      bool saturate);
   void ByteSwap();

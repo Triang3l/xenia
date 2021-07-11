@@ -852,19 +852,19 @@ bool ConstantPropagationPass::Run(HIRBuilder* builder, bool& result) {
           }
           break;
 
-        case OPCODE_DOT_PRODUCT_3:
+        case OPCODE_DOT_PRODUCT_3_SPLAT:
           if (i->src1.value->IsConstant() && i->src2.value->IsConstant()) {
             v->set_from(i->src1.value);
-            v->DotProduct3(i->src2.value);
+            v->DotProduct3Splat(i->src2.value);
             i->Remove();
             result = true;
           }
           break;
 
-        case OPCODE_DOT_PRODUCT_4:
+        case OPCODE_DOT_PRODUCT_4_SPLAT:
           if (i->src1.value->IsConstant() && i->src2.value->IsConstant()) {
             v->set_from(i->src1.value);
-            v->DotProduct4(i->src2.value);
+            v->DotProduct4Splat(i->src2.value);
             i->Remove();
             result = true;
           }
