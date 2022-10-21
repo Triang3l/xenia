@@ -49,3 +49,34 @@ project("xenia-ui-window-vulkan-demo")
       "xcb",
       "X11-xcb",
     })
+
+group("demos")
+project("xenia-ui-vulkan-fsi-demo")
+  uuid("e38d2820-4568-464b-9aa1-348e70e1ef08")
+  single_library_windowed_app_kind()
+  language("C++")
+  links({
+    "fmt",
+    "glslang-spirv",
+    "imgui",
+    "xenia-base",
+    "xenia-ui",
+    "xenia-ui-vulkan",
+  })
+  includedirs({
+    project_root.."/third_party/Vulkan-Headers/include",
+  })
+  files({
+    "vulkan_fsi_demo.cc",
+    project_root.."/src/xenia/ui/windowed_app_main_"..platform_suffix..".cc",
+  })
+  resincludedirs({
+    project_root,
+  })
+
+  filter("platforms:Linux")
+    links({
+      "X11",
+      "xcb",
+      "X11-xcb",
+    })
