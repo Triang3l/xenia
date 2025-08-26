@@ -63,27 +63,6 @@ bool IsRasterizationPotentiallyDone(const RegisterFile& regs,
   return true;
 }
 
-reg::RB_DEPTHCONTROL GetNormalizedDepthControl(const RegisterFile& regs) {
-  xenos::EdramMode edram_mode = regs.Get<reg::RB_MODECONTROL>().edram_mode;
-  if (edram_mode != xenos::EdramMode::kColorDepth &&
-      edram_mode != xenos::EdramMode::kDepthOnly) {
-    // Both depth and stencil disabled (EDRAM depth and stencil ignored).
-    reg::RB_DEPTHCONTROL disabled;
-    disabled.value = 0;
-    return disabled;
-  }
-  reg::RB_DEPTHCONTROL depthcontrol = regs.Get<reg::RB_DEPTHCONTROL>();
-  // For more reliable skipping of depth render target management for draws not
-  // requiring depth.
-  if (depthcontrol.z_enable && !depthcontrol.z_write_enable &&
-      depthcontrol.zfunc == xenos::CompareFunction::kAlways) {
-    depthcontrol.z_enable = 0;
-  }
-  // Stencil is more complex and is expected to be usually enabled explicitly
-  // when needed.
-  return depthcontrol;
-}
-
 // https://docs.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_standard_multisample_quality_levels
 const int8_t kD3D10StandardSamplePositions2x[2][2] = {{4, 4}, {-4, -4}};
 const int8_t kD3D10StandardSamplePositions4x[4][2] = {
@@ -170,8 +149,7 @@ void GetHostViewportInfo(const RegisterFile& regs,
                          uint32_t draw_resolution_scale_x,
                          uint32_t draw_resolution_scale_y,
                          bool origin_bottom_left, uint32_t x_max,
-                         uint32_t y_max, bool allow_reverse_z,
-                         reg::RB_DEPTHCONTROL normalized_depth_control,
+                         uint32_t y_max, bool allow_reverse_z, bool z_enable,
                          bool convert_z_to_float24, bool full_float24_in_0_to_1,
                          bool pixel_shader_writes_depth,
                          ViewportInfo& viewport_info_out) {
@@ -520,9 +498,8 @@ void GetHostViewportInfo(const RegisterFile& regs,
     }
   }
 
-  if (normalized_depth_control.z_enable &&
-      regs.Get<reg::RB_DEPTH_INFO>().depth_format ==
-          xenos::DepthRenderTargetFormat::kD24FS8) {
+  if (z_enable && regs.Get<reg::RB_DEPTH_INFO>().depth_format ==
+                      xenos::DepthRenderTargetFormat::kD24FS8) {
     if (convert_z_to_float24) {
       // Need to adjust the bounds that the resulting depth values will be
       // clamped to after the pixel shader. Preferring adding some error to

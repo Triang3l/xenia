@@ -2095,10 +2095,7 @@ Shader* D3D12CommandProcessor::LoadShader(xenos::ShaderType shader_type,
   return pipeline_cache_->LoadShader(shader_type, host_address, dword_count);
 }
 
-bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
-                                      uint32_t index_count,
-                                      IndexBufferInfo* index_buffer_info,
-                                      bool major_mode_explicit) {
+bool D3D12CommandProcessor::IssueDraw() {
 #if XE_GPU_FINE_GRAINED_DRAW_SCOPES
   SCOPE_profile_cpu_f("gpu");
 #endif  // XE_GPU_FINE_GRAINED_DRAW_SCOPES
@@ -2106,8 +2103,9 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
   ID3D12Device* device = GetD3D12Provider().GetDevice();
   const RegisterFile& regs = *register_file_;
 
-  xenos::EdramMode edram_mode = regs.Get<reg::RB_MODECONTROL>().edram_mode;
-  if (edram_mode == xenos::EdramMode::kCopy) {
+  const SurfaceState surface_state(regs, false);
+
+  if (surface_state.edram_mode == xenos::EdramMode::kCopy) {
     // Special copy handling.
     return IssueCopy();
   }
@@ -2136,7 +2134,7 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
   if (is_rasterization_done) {
     // See xenos::EdramMode for explanation why the pixel shader is only used
     // when it's kColorDepth here.
-    if (edram_mode == xenos::EdramMode::kColorDepth) {
+    if (surface_state.edram_mode == xenos::EdramMode::kColorDepth) {
       pixel_shader = static_cast<D3D12Shader*>(active_pixel_shader());
       if (pixel_shader) {
         pipeline_cache_->AnalyzeShaderUcode(*pixel_shader);
@@ -2172,8 +2170,10 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
     return true;
   }
 
-  reg::RB_DEPTHCONTROL normalized_depth_control =
-      draw_util::GetNormalizedDepthControl(regs);
+  const ScissorState scissor_state(regs);
+  const PrimitiveState primitive_state(regs, scissor_state.IsEmpty());
+  const DepthStencilState depth_stencil_state(regs, primitive_state,
+                                              surface_state.edram_mode);
 
   // Shader modifications.
   uint32_t ps_param_gen_pos = UINT32_MAX;
@@ -2190,7 +2190,7 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
   DxbcShaderTranslator::Modification pixel_shader_modification =
       pixel_shader ? pipeline_cache_->GetCurrentPixelShaderModification(
                          *pixel_shader, interpolator_mask, ps_param_gen_pos,
-                         normalized_depth_control)
+                         depth_stencil_state.depth_control.z_enable)
                    : DxbcShaderTranslator::Modification(0);
 
   // Set up the render targets - this may perform dispatches and draws.
@@ -2198,8 +2198,7 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
       pixel_shader ? draw_util::GetNormalizedColorMask(
                          regs, pixel_shader->writes_color_targets())
                    : 0;
-  if (!render_target_cache_->Update(is_rasterization_done,
-                                    normalized_depth_control,
+  if (!render_target_cache_->Update(is_rasterization_done, depth_stencil_state,
                                     normalized_color_mask, *vertex_shader)) {
     return false;
   }
@@ -2233,7 +2232,7 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
   ID3D12RootSignature* root_signature;
   if (!pipeline_cache_->ConfigurePipeline(
           vertex_shader_translation, pixel_shader_translation,
-          primitive_processing_result, normalized_depth_control,
+          primitive_processing_result, depth_stencil_state,
           normalized_color_mask, bound_depth_and_color_render_target_bits,
           bound_depth_and_color_render_target_formats, &pipeline_handle,
           &root_signature)) {
@@ -2264,7 +2263,7 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
   draw_util::GetHostViewportInfo(
       regs, draw_resolution_scale_x, draw_resolution_scale_y, true,
       D3D12_VIEWPORT_BOUNDS_MAX, D3D12_VIEWPORT_BOUNDS_MAX, false,
-      normalized_depth_control,
+      depth_stencil_state.depth_control.z_enable,
       host_render_targets_used &&
           render_target_cache_->depth_float24_convert_in_pixel_shader(),
       host_render_targets_used, pixel_shader && pixel_shader->writes_depth(),
@@ -2277,16 +2276,15 @@ bool D3D12CommandProcessor::IssueDraw(xenos::PrimitiveType primitive_type,
   scissor.extent[1] *= draw_resolution_scale_y;
 
   // Update viewport, scissor, blend factor and stencil reference.
-  UpdateFixedFunctionState(viewport_info, scissor, primitive_polygonal,
-                           normalized_depth_control);
+  UpdateFixedFunctionState(viewport_info, scissor, depth_stencil_state);
 
   // Update system constants before uploading them.
   // TODO(Triang3l): With ROV, pass the disabled render target mask for safety.
   UpdateSystemConstantValues(
-      memexport_used, primitive_polygonal,
+      memexport_used, primitive_state,
       primitive_processing_result.line_loop_closing_index,
       primitive_processing_result.host_shader_index_endian, viewport_info,
-      used_texture_mask, normalized_depth_control, normalized_color_mask);
+      used_texture_mask, depth_stencil_state, normalized_color_mask);
 
   // Update constant buffers, descriptors and root parameters.
   if (!UpdateBindings(vertex_shader, pixel_shader, root_signature,
@@ -3021,8 +3019,8 @@ void D3D12CommandProcessor::ClearCommandAllocatorCache() {
 
 void D3D12CommandProcessor::UpdateFixedFunctionState(
     const draw_util::ViewportInfo& viewport_info,
-    const draw_util::Scissor& scissor, bool primitive_polygonal,
-    reg::RB_DEPTHCONTROL normalized_depth_control) {
+    const draw_util::Scissor& scissor,
+    const DepthStencilState& depth_stencil_state) {
 #if XE_GPU_FINE_GRAINED_DRAW_SCOPES
   SCOPE_profile_cpu_f("gpu");
 #endif  // XE_GPU_FINE_GRAINED_DRAW_SCOPES
@@ -3066,32 +3064,27 @@ void D3D12CommandProcessor::UpdateFixedFunctionState(
       ff_blend_factor_update_needed_ = false;
     }
 
-    // Stencil reference value. Per-face reference not supported by Direct3D 12,
-    // choose the back face one only if drawing only back faces.
-    Register stencil_ref_mask_reg;
-    auto pa_su_sc_mode_cntl = regs.Get<reg::PA_SU_SC_MODE_CNTL>();
-    if (primitive_polygonal && normalized_depth_control.backface_enable &&
-        pa_su_sc_mode_cntl.cull_front && !pa_su_sc_mode_cntl.cull_back) {
-      stencil_ref_mask_reg = XE_GPU_REG_RB_STENCILREFMASK_BF;
-    } else {
-      stencil_ref_mask_reg = XE_GPU_REG_RB_STENCILREFMASK;
-    }
-    uint32_t stencil_ref =
-        regs.Get<reg::RB_STENCILREFMASK>(stencil_ref_mask_reg).stencilref;
-    ff_stencil_ref_update_needed_ |= ff_stencil_ref_ != stencil_ref;
-    if (ff_stencil_ref_update_needed_) {
-      ff_stencil_ref_ = stencil_ref;
-      deferred_command_list_.D3DOMSetStencilRef(ff_stencil_ref_);
-      ff_stencil_ref_update_needed_ = false;
+    // Stencil reference value.
+    if (depth_stencil_state.depth_control.stencil_enable) {
+      // TODO(Triang3l): Use VulkanOn12 per-face stencil references where
+      // supported.
+      ff_stencil_ref_update_needed_ |=
+          ff_stencil_ref_ !=
+          depth_stencil_state.stencil_ref_mask_front.stencilref;
+      if (ff_stencil_ref_update_needed_) {
+        ff_stencil_ref_ = depth_stencil_state.stencil_ref_mask_front.stencilref;
+        deferred_command_list_.D3DOMSetStencilRef(ff_stencil_ref_);
+        ff_stencil_ref_update_needed_ = false;
+      }
     }
   }
 }
 
 void D3D12CommandProcessor::UpdateSystemConstantValues(
-    bool shared_memory_is_uav, bool primitive_polygonal,
+    bool shared_memory_is_uav, const PrimitiveState& primitive_state,
     uint32_t line_loop_closing_index, xenos::Endian index_endian,
     const draw_util::ViewportInfo& viewport_info, uint32_t used_texture_mask,
-    reg::RB_DEPTHCONTROL normalized_depth_control,
+    const DepthStencilState& depth_stencil_state,
     uint32_t normalized_color_mask) {
 #if XE_GPU_FINE_GRAINED_DRAW_SCOPES
   SCOPE_profile_cpu_f("gpu");
@@ -3100,13 +3093,9 @@ void D3D12CommandProcessor::UpdateSystemConstantValues(
   const RegisterFile& regs = *register_file_;
   auto pa_cl_clip_cntl = regs.Get<reg::PA_CL_CLIP_CNTL>();
   auto pa_cl_vte_cntl = regs.Get<reg::PA_CL_VTE_CNTL>();
-  auto pa_su_sc_mode_cntl = regs.Get<reg::PA_SU_SC_MODE_CNTL>();
   auto rb_alpha_ref = regs.Get<float>(XE_GPU_REG_RB_ALPHA_REF);
   auto rb_colorcontrol = regs.Get<reg::RB_COLORCONTROL>();
   auto rb_depth_info = regs.Get<reg::RB_DEPTH_INFO>();
-  auto rb_stencilrefmask = regs.Get<reg::RB_STENCILREFMASK>();
-  auto rb_stencilrefmask_bf =
-      regs.Get<reg::RB_STENCILREFMASK>(XE_GPU_REG_RB_STENCILREFMASK_BF);
   auto rb_surface_info = regs.Get<reg::RB_SURFACE_INFO>();
   auto sq_context_misc = regs.Get<reg::SQ_CONTEXT_MISC>();
   auto sq_program_cntl = regs.Get<reg::SQ_PROGRAM_CNTL>();
@@ -3145,8 +3134,8 @@ void D3D12CommandProcessor::UpdateSystemConstantValues(
   // Disable depth and stencil if it aliases a color render target (for
   // instance, during the XBLA logo in 58410954, though depth writing is already
   // disabled there).
-  bool depth_stencil_enabled = normalized_depth_control.stencil_enable ||
-                               normalized_depth_control.z_enable;
+  bool depth_stencil_enabled = depth_stencil_state.depth_control.z_enable ||
+                               depth_stencil_state.depth_control.stencil_enable;
   if (edram_rov_used && depth_stencil_enabled) {
     for (uint32_t i = 0; i < 4; ++i) {
       if (rb_depth_info.depth_base == color_infos[i].color_base &&
@@ -3185,12 +3174,12 @@ void D3D12CommandProcessor::UpdateSystemConstantValues(
   if (pa_cl_vte_cntl.vtx_w0_fmt) {
     flags |= DxbcShaderTranslator::kSysFlag_WNotReciprocal;
   }
-  // Whether the primitive is polygonal and SV_IsFrontFace matters.
-  if (primitive_polygonal) {
-    flags |= DxbcShaderTranslator::kSysFlag_PrimitivePolygonal;
-  }
   // Primitive type.
-  if (draw_util::IsPrimitiveLine(regs)) {
+  if (primitive_state.assembled_primitive_type ==
+      PrimitiveState::AssembledPrimitiveType::kTriangleTwoFaced) {
+    flags |= DxbcShaderTranslator::kSysFlag_PrimitivePolygonal;
+  } else if (primitive_state.assembled_primitive_type ==
+             PrimitiveState::AssembledPrimitiveType::kLine) {
     flags |= DxbcShaderTranslator::kSysFlag_PrimitiveLine;
   }
   // Depth format.
@@ -3214,10 +3203,10 @@ void D3D12CommandProcessor::UpdateSystemConstantValues(
   }
   if (edram_rov_used && depth_stencil_enabled) {
     flags |= DxbcShaderTranslator::kSysFlag_ROVDepthStencil;
-    if (normalized_depth_control.z_enable) {
-      flags |= uint32_t(normalized_depth_control.zfunc)
+    if (depth_stencil_state.depth_control.z_enable) {
+      flags |= uint32_t(depth_stencil_state.depth_control.zfunc)
                << DxbcShaderTranslator::kSysFlag_ROVDepthPassIfLess_Shift;
-      if (normalized_depth_control.z_write_enable) {
+      if (depth_stencil_state.depth_control.z_write_enable) {
         flags |= DxbcShaderTranslator::kSysFlag_ROVDepthWrite;
       }
     } else {
@@ -3227,7 +3216,7 @@ void D3D12CommandProcessor::UpdateSystemConstantValues(
                DxbcShaderTranslator::kSysFlag_ROVDepthPassIfEqual |
                DxbcShaderTranslator::kSysFlag_ROVDepthPassIfGreater;
     }
-    if (normalized_depth_control.stencil_enable) {
+    if (depth_stencil_state.depth_control.stencil_enable) {
       flags |= DxbcShaderTranslator::kSysFlag_ROVStencilTest;
     }
     // Hint - if not applicable to the shader, will not have effect.
@@ -3469,101 +3458,79 @@ void D3D12CommandProcessor::UpdateSystemConstantValues(
              depth_base_dwords_scaled;
     system_constants_.edram_depth_base_dwords_scaled = depth_base_dwords_scaled;
 
-    // For non-polygons, front polygon offset is used, and it's enabled if
-    // POLY_OFFSET_PARA_ENABLED is set, for polygons, separate front and back
-    // are used.
-    float poly_offset_front_scale = 0.0f, poly_offset_front_offset = 0.0f;
-    float poly_offset_back_scale = 0.0f, poly_offset_back_offset = 0.0f;
-    if (primitive_polygonal) {
-      if (pa_su_sc_mode_cntl.poly_offset_front_enable) {
-        poly_offset_front_scale =
-            regs.Get<float>(XE_GPU_REG_PA_SU_POLY_OFFSET_FRONT_SCALE);
-        poly_offset_front_offset =
-            regs.Get<float>(XE_GPU_REG_PA_SU_POLY_OFFSET_FRONT_OFFSET);
-      }
-      if (pa_su_sc_mode_cntl.poly_offset_back_enable) {
-        poly_offset_back_scale =
-            regs.Get<float>(XE_GPU_REG_PA_SU_POLY_OFFSET_BACK_SCALE);
-        poly_offset_back_offset =
-            regs.Get<float>(XE_GPU_REG_PA_SU_POLY_OFFSET_BACK_OFFSET);
-      }
-    } else {
-      if (pa_su_sc_mode_cntl.poly_offset_para_enable) {
-        poly_offset_front_scale =
-            regs.Get<float>(XE_GPU_REG_PA_SU_POLY_OFFSET_FRONT_SCALE);
-        poly_offset_front_offset =
-            regs.Get<float>(XE_GPU_REG_PA_SU_POLY_OFFSET_FRONT_OFFSET);
-        poly_offset_back_scale = poly_offset_front_scale;
-        poly_offset_back_offset = poly_offset_front_offset;
-      }
-    }
     // With non-square resolution scaling, make sure the worst-case impact is
     // reverted (slope only along the scaled axis), thus max. More bias is
     // better than less bias, because less bias means Z fighting with the
     // background is more likely.
-    float poly_offset_scale_factor =
+    const float poly_offset_scale_factor =
         xenos::kPolygonOffsetScaleSubpixelUnit *
         std::max(draw_resolution_scale_x, draw_resolution_scale_y);
-    poly_offset_front_scale *= poly_offset_scale_factor;
-    poly_offset_back_scale *= poly_offset_scale_factor;
+    const float poly_offset_front_scale =
+        primitive_state.polygon_offset_front_subpixel_slope_scale *
+        poly_offset_scale_factor;
+    const float poly_offset_back_scale =
+        primitive_state.polygon_offset_back_subpixel_slope_scale *
+        poly_offset_scale_factor;
     dirty |= system_constants_.edram_poly_offset_front_scale !=
              poly_offset_front_scale;
     system_constants_.edram_poly_offset_front_scale = poly_offset_front_scale;
     dirty |= system_constants_.edram_poly_offset_front_offset !=
-             poly_offset_front_offset;
-    system_constants_.edram_poly_offset_front_offset = poly_offset_front_offset;
+             primitive_state.polygon_offset_front_offset;
+    system_constants_.edram_poly_offset_front_offset =
+        primitive_state.polygon_offset_front_offset;
     dirty |= system_constants_.edram_poly_offset_back_scale !=
              poly_offset_back_scale;
     system_constants_.edram_poly_offset_back_scale = poly_offset_back_scale;
     dirty |= system_constants_.edram_poly_offset_back_offset !=
-             poly_offset_back_offset;
-    system_constants_.edram_poly_offset_back_offset = poly_offset_back_offset;
+             primitive_state.polygon_offset_back_offset;
+    system_constants_.edram_poly_offset_back_offset =
+        primitive_state.polygon_offset_back_offset;
 
-    if (depth_stencil_enabled && normalized_depth_control.stencil_enable) {
+    if (depth_stencil_enabled &&
+        depth_stencil_state.depth_control.stencil_enable) {
+      // Reference.
       dirty |= system_constants_.edram_stencil_front_reference !=
-               rb_stencilrefmask.stencilref;
+               depth_stencil_state.stencil_ref_mask_front.stencilref;
       system_constants_.edram_stencil_front_reference =
-          rb_stencilrefmask.stencilref;
-      dirty |= system_constants_.edram_stencil_front_read_mask !=
-               rb_stencilrefmask.stencilmask;
-      system_constants_.edram_stencil_front_read_mask =
-          rb_stencilrefmask.stencilmask;
-      dirty |= system_constants_.edram_stencil_front_write_mask !=
-               rb_stencilrefmask.stencilwritemask;
-      system_constants_.edram_stencil_front_write_mask =
-          rb_stencilrefmask.stencilwritemask;
-      uint32_t stencil_func_ops =
-          (normalized_depth_control.value >> 8) & ((1 << 12) - 1);
-      dirty |=
-          system_constants_.edram_stencil_front_func_ops != stencil_func_ops;
-      system_constants_.edram_stencil_front_func_ops = stencil_func_ops;
+          depth_stencil_state.stencil_ref_mask_front.stencilref;
+      dirty |= system_constants_.edram_stencil_back_reference !=
+               depth_stencil_state.stencil_ref_mask_back.stencilref;
+      system_constants_.edram_stencil_back_reference =
+          depth_stencil_state.stencil_ref_mask_back.stencilref;
 
-      if (primitive_polygonal && normalized_depth_control.backface_enable) {
-        dirty |= system_constants_.edram_stencil_back_reference !=
-                 rb_stencilrefmask_bf.stencilref;
-        system_constants_.edram_stencil_back_reference =
-            rb_stencilrefmask_bf.stencilref;
-        dirty |= system_constants_.edram_stencil_back_read_mask !=
-                 rb_stencilrefmask_bf.stencilmask;
-        system_constants_.edram_stencil_back_read_mask =
-            rb_stencilrefmask_bf.stencilmask;
-        dirty |= system_constants_.edram_stencil_back_write_mask !=
-                 rb_stencilrefmask_bf.stencilwritemask;
-        system_constants_.edram_stencil_back_write_mask =
-            rb_stencilrefmask_bf.stencilwritemask;
-        uint32_t stencil_func_ops_bf =
-            (normalized_depth_control.value >> 20) & ((1 << 12) - 1);
-        dirty |= system_constants_.edram_stencil_back_func_ops !=
-                 stencil_func_ops_bf;
-        system_constants_.edram_stencil_back_func_ops = stencil_func_ops_bf;
-      } else {
-        dirty |= std::memcmp(system_constants_.edram_stencil_back,
-                             system_constants_.edram_stencil_front,
-                             4 * sizeof(uint32_t)) != 0;
-        std::memcpy(system_constants_.edram_stencil_back,
-                    system_constants_.edram_stencil_front,
-                    4 * sizeof(uint32_t));
-      }
+      // Compare mask.
+      dirty |= system_constants_.edram_stencil_front_read_mask !=
+               depth_stencil_state.stencil_ref_mask_front.stencilmask;
+      system_constants_.edram_stencil_front_read_mask =
+          depth_stencil_state.stencil_ref_mask_front.stencilmask;
+      dirty |= system_constants_.edram_stencil_back_read_mask !=
+               depth_stencil_state.stencil_ref_mask_back.stencilmask;
+      system_constants_.edram_stencil_back_read_mask =
+          depth_stencil_state.stencil_ref_mask_back.stencilmask;
+
+      // Write mask.
+      dirty |= system_constants_.edram_stencil_front_write_mask !=
+               depth_stencil_state.stencil_ref_mask_front.stencilwritemask;
+      system_constants_.edram_stencil_front_write_mask =
+          depth_stencil_state.stencil_ref_mask_front.stencilwritemask;
+      dirty |= system_constants_.edram_stencil_back_write_mask !=
+               depth_stencil_state.stencil_ref_mask_back.stencilwritemask;
+      system_constants_.edram_stencil_back_write_mask =
+          depth_stencil_state.stencil_ref_mask_back.stencilwritemask;
+
+      // Comparison function and operations.
+      const uint32_t stencil_front_func_ops =
+          (depth_stencil_state.depth_control.value >> 8) &
+          ((uint32_t(1) << 12) - 1);
+      dirty |= system_constants_.edram_stencil_front_func_ops !=
+               stencil_front_func_ops;
+      system_constants_.edram_stencil_front_func_ops = stencil_front_func_ops;
+      const uint32_t stencil_back_func_ops =
+          (depth_stencil_state.depth_control.value >> 20) &
+          ((uint32_t(1) << 12) - 1);
+      dirty |= system_constants_.edram_stencil_back_func_ops !=
+               stencil_back_func_ops;
+      system_constants_.edram_stencil_back_func_ops = stencil_back_func_ops;
     }
 
     dirty |= system_constants_.edram_blend_constant[0] !=

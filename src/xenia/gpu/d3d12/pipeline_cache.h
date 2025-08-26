@@ -31,6 +31,7 @@
 #include "xenia/gpu/d3d12/d3d12_shader.h"
 #include "xenia/gpu/dxbc_shader_translator.h"
 #include "xenia/gpu/gpu_flags.h"
+#include "xenia/gpu/pipeline_state.h"
 #include "xenia/gpu/primitive_processor.h"
 #include "xenia/gpu/register_file.h"
 #include "xenia/gpu/registers.h"
@@ -82,7 +83,7 @@ class PipelineCache {
       uint32_t interpolator_mask) const;
   DxbcShaderTranslator::Modification GetCurrentPixelShaderModification(
       const Shader& shader, uint32_t interpolator_mask, uint32_t param_gen_pos,
-      reg::RB_DEPTHCONTROL normalized_depth_control) const;
+      bool z_enable) const;
 
   // If draw_util::IsRasterizationPotentiallyDone is false, the pixel shader
   // MUST be made nullptr BEFORE calling this!
@@ -90,7 +91,7 @@ class PipelineCache {
       D3D12Shader::D3D12Translation* vertex_shader,
       D3D12Shader::D3D12Translation* pixel_shader,
       const PrimitiveProcessor::ProcessingResult& primitive_processing_result,
-      reg::RB_DEPTHCONTROL normalized_depth_control,
+      const DepthStencilState& depth_stencil_state,
       uint32_t normalized_color_mask,
       uint32_t bound_depth_and_color_render_target_bits,
       const uint32_t* bound_depth_and_color_render_targets_formats,
@@ -285,7 +286,7 @@ class PipelineCache {
       D3D12Shader::D3D12Translation* vertex_shader,
       D3D12Shader::D3D12Translation* pixel_shader,
       const PrimitiveProcessor::ProcessingResult& primitive_processing_result,
-      reg::RB_DEPTHCONTROL normalized_depth_control,
+      const DepthStencilState& depth_stencil_state,
       uint32_t normalized_color_mask,
       uint32_t bound_depth_and_color_render_target_bits,
       const uint32_t* bound_depth_and_color_render_target_formats,

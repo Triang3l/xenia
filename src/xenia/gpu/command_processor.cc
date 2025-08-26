@@ -479,6 +479,25 @@ void CommandProcessor::WriteRegister(uint32_t index, uint32_t value) {
           OnGammaRamp256EntryTableValueWritten();
         }
       } break;
+
+      case XE_GPU_REG_VGT_DRAW_INITIATOR: {
+        // According to the Radeon Southern Islands 3D / Compute Register
+        // Reference Guide (the description there applies to the earlier chips
+        // as well, as it also references Wekiva, which is R7xx):
+        // "VGT_DRAW_INITIATOR is the register for triggering execution of a
+        // draw packet (2D or 3D). The act of writing this register is a trigger
+        // that initiates processing in the VGT."
+        if (!IssueDraw()) {
+          const auto vgt_draw_initiator =
+              xe::memory::Reinterpret<reg::VGT_DRAW_INITIATOR>(value);
+          XELOGE(
+              "Drawing primitives of type {} with {} vertex indices from the "
+              "source {} failed in the implementation",
+              uint32_t(vgt_draw_initiator.prim_type),
+              vgt_draw_initiator.num_indices,
+              uint32_t(vgt_draw_initiator.source_select));
+        }
+      } break;
     }
   }
 }
@@ -1297,21 +1316,14 @@ bool CommandProcessor::ExecutePacketType3Draw(RingBuffer* reader,
     XELOGE("{}: Packet too small, can't read VGT_DRAW_INITIATOR", opcode_name);
     return false;
   }
-  reg::VGT_DRAW_INITIATOR vgt_draw_initiator;
-  vgt_draw_initiator.value = reader->ReadAndSwap<uint32_t>();
+  const auto vgt_draw_initiator =
+      xe::memory::Reinterpret<reg::VGT_DRAW_INITIATOR>(
+          reader->ReadAndSwap<uint32_t>());
   --count_remaining;
-  WriteRegister(XE_GPU_REG_VGT_DRAW_INITIATOR, vgt_draw_initiator.value);
 
-  bool draw_succeeded = true;
-  // TODO(Triang3l): Remove IndexBufferInfo and replace handling of all this
-  // with PrimitiveProcessor when the old Vulkan renderer is removed.
-  bool is_indexed = false;
-  IndexBufferInfo index_buffer_info;
+  bool draw_supported = true;
   switch (vgt_draw_initiator.source_select) {
     case xenos::SourceSelect::kDMA: {
-      // Indexed draw.
-      is_indexed = true;
-
       // Two separate bounds checks so if there's only one missing register
       // value out of two, one uint32_t will be skipped in the command buffer,
       // not two.
@@ -1332,36 +1344,23 @@ bool CommandProcessor::ExecutePacketType3Draw(RingBuffer* reader,
       vgt_dma_size.value = reader->ReadAndSwap<uint32_t>();
       --count_remaining;
       WriteRegister(XE_GPU_REG_VGT_DMA_SIZE, vgt_dma_size.value);
-
-      uint32_t index_size_bytes =
-          vgt_draw_initiator.index_size == xenos::IndexFormat::kInt16
-              ? sizeof(uint16_t)
-              : sizeof(uint32_t);
-      // The base address must already be word-aligned according to the R6xx
-      // documentation, but for safety.
-      index_buffer_info.guest_base = vgt_dma_base & ~(index_size_bytes - 1);
-      index_buffer_info.endianness = vgt_dma_size.swap_mode;
-      index_buffer_info.format = vgt_draw_initiator.index_size;
-      index_buffer_info.length = vgt_dma_size.num_words * index_size_bytes;
-      index_buffer_info.count = vgt_draw_initiator.num_indices;
     } break;
     case xenos::SourceSelect::kImmediate: {
-      // TODO(Triang3l): VGT_IMMED_DATA.
+      // TODO(Triang3l): Write each immediate index to VGT_IMMED_DATA to push to
+      // the FIFO. Research odd 16-bit index counts as well.
       XELOGE(
           "{}: Using immediate vertex indices, which are not supported yet. "
           "Report the game to Xenia developers!",
           opcode_name, uint32_t(vgt_draw_initiator.source_select));
-      draw_succeeded = false;
+      draw_supported = false;
       assert_always();
     } break;
     case xenos::SourceSelect::kAutoIndex: {
-      // Auto draw.
-      index_buffer_info.guest_base = 0;
-      index_buffer_info.length = 0;
+      // Auto-indexed draw.
     } break;
     default: {
       // Invalid source selection.
-      draw_succeeded = false;
+      draw_supported = false;
       assert_unhandled_case(vgt_draw_initiator.source_select);
     } break;
   }
@@ -1370,31 +1369,11 @@ bool CommandProcessor::ExecutePacketType3Draw(RingBuffer* reader,
   // we don't support yet.
   reader->AdvanceRead(count_remaining * sizeof(uint32_t));
 
-  if (draw_succeeded) {
-    auto viz_query = register_file_->Get<reg::PA_SC_VIZ_QUERY>();
-    if (!(viz_query.viz_query_ena && viz_query.kill_pix_post_hi_z)) {
-      // TODO(Triang3l): Don't drop the draw call completely if the vertex
-      // shader has memexport.
-      // TODO(Triang3l || JoelLinn): Handle this properly in the render
-      // backends.
-      draw_succeeded = IssueDraw(
-          vgt_draw_initiator.prim_type, vgt_draw_initiator.num_indices,
-          is_indexed ? &index_buffer_info : nullptr,
-          xenos::IsMajorModeExplicit(vgt_draw_initiator.major_mode,
-                                     vgt_draw_initiator.prim_type));
-      if (!draw_succeeded) {
-        XELOGE("{}({}, {}, {}): Failed in backend", opcode_name,
-               vgt_draw_initiator.num_indices,
-               uint32_t(vgt_draw_initiator.prim_type),
-               uint32_t(vgt_draw_initiator.source_select));
-      }
-    }
+  // Draw.
+  if (draw_supported) {
+    WriteRegister(XE_GPU_REG_VGT_DRAW_INITIATOR, vgt_draw_initiator.value);
   }
 
-  // If read the packed correctly, but merely couldn't execute it (because of,
-  // for instance, features not supported by the host), don't terminate command
-  // buffer processing as that would leave rendering in a way more inconsistent
-  // state than just a single dropped draw command.
   return true;
 }
 

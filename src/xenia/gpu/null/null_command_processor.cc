@@ -42,14 +42,7 @@ Shader* NullCommandProcessor::LoadShader(xenos::ShaderType shader_type,
   return nullptr;
 }
 
-bool NullCommandProcessor::IssueDraw(xenos::PrimitiveType prim_type,
-                                     uint32_t index_count,
-                                     IndexBufferInfo* index_buffer_info,
-                                     bool major_mode_explicit) {
-  return true;
-}
-
-bool NullCommandProcessor::IssueCopy() { return true; }
+bool NullCommandProcessor::IssueDraw() { return true; }
 
 void NullCommandProcessor::InitializeTrace() {}
 

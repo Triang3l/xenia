@@ -19,6 +19,9 @@ project("xenia-gpu")
     project_root.."/third_party/Vulkan-Headers/include",
   })
   local_platform_files()
+  -- TODO(Triang3l): Move `hw` to a separate static library when all users
+  -- inside the `xenia-gpu` library are moved.
+  local_platform_files("hw")
 
 group("src")
 project("xenia-gpu-shader-compiler")

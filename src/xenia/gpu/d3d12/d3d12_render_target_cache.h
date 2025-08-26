@@ -64,7 +64,7 @@ class D3D12RenderTargetCache final : public RenderTargetCache {
   Path GetPath() const override { return path_; }
 
   bool Update(bool is_rasterization_done,
-              reg::RB_DEPTHCONTROL normalized_depth_control,
+              const DepthStencilState& depth_stencil_state,
               uint32_t normalized_color_mask,
               const Shader& vertex_shader) override;
 

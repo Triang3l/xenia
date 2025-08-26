@@ -310,6 +310,30 @@ inline T log2_ceil(T v) {
 }
 
 template <typename T>
+constexpr unsigned bit_field_width(const T value_exclusive_upper_bound) {
+  if (!value_exclusive_upper_bound) {
+    return 1;
+  }
+  unsigned width = 1;
+  auto remaining =
+      static_cast<std::make_unsigned_t<T>>(value_exclusive_upper_bound - 1u);
+  while (remaining) {
+    ++width;
+    remaining >>= 1;
+  }
+  return width;
+}
+
+template <typename T>
+constexpr unsigned enum_bit_field_width(const T value_exclusive_upper_bound) {
+  return bit_field_width(
+      static_cast<std::underlying_type_t<T>>(value_exclusive_upper_bound));
+}
+
+#define XE_ENUM_BIT_FIELD(type, name, count_field) \
+  type name : xe::enum_bit_field_width(type::count_field)
+
+template <typename T>
 inline T rotate_left(T v, uint8_t sh) {
   return (T(v) << sh) | (T(v) >> ((sizeof(T) * 8) - sh));
 }

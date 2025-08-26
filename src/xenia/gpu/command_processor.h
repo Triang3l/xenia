@@ -139,14 +139,6 @@ class CommandProcessor {
   bool Restore(ByteStream* stream);
 
  protected:
-  struct IndexBufferInfo {
-    xenos::IndexFormat format = xenos::IndexFormat::kInt16;
-    xenos::Endian endianness = xenos::Endian::kNone;
-    uint32_t count = 0;
-    uint32_t guest_base = 0;
-    size_t length = 0;
-  };
-
   void WorkerThreadMain();
   virtual bool SetupContext() = 0;
   virtual void ShutdownContext() = 0;
@@ -233,10 +225,7 @@ class CommandProcessor {
                              const uint32_t* host_address,
                              uint32_t dword_count) = 0;
 
-  virtual bool IssueDraw(xenos::PrimitiveType prim_type, uint32_t index_count,
-                         IndexBufferInfo* index_buffer_info,
-                         bool major_mode_explicit) = 0;
-  virtual bool IssueCopy() = 0;
+  virtual bool IssueDraw() = 0;
 
   // "Actual" is for the command processor thread, to be read by the
   // implementations.

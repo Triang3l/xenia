@@ -397,6 +397,7 @@ union alignas(uint32_t) VGT_MAX_VTX_INDX {
 };
 static_assert_size(VGT_MAX_VTX_INDX, sizeof(uint32_t));
 
+// Ignored in the implicit major mode.
 union alignas(uint32_t) VGT_OUTPUT_PATH_CNTL {
   uint32_t value;
   struct {
@@ -513,16 +514,27 @@ union alignas(uint32_t) PA_SC_MPASS_PS_CNTL {
 };
 static_assert_size(PA_SC_MPASS_PS_CNTL, sizeof(uint32_t));
 
-// Scanline converter viz query, used by D3D for gpu side conditional rendering
+// Scanline converter viz query, used by D3D for GPU-side conditional rendering.
 union alignas(uint32_t) PA_SC_VIZ_QUERY {
   uint32_t value;
   struct {
-    // the visibility of draws should be evaluated
+    // If enabled, the visibility of draws should be evaluated and written to
+    // the query at `viz_query_id`.
     uint32_t viz_query_ena : 1;  // +0
     uint32_t viz_query_id : 6;   // +1
-    // discard geometry after test (but use for testing)
+    // Discard tiles from the rasterizer after the early hi-Z test, but use the
+    // hi-Z result for the viz query.
     uint32_t kill_pix_post_hi_z : 1;  // +7
-    // not used with d3d
+    // Not fully known, but possibly discard samples from the rasterizer, while
+    // still using the result for performance counters and likely the viz query
+    // (because hi-Z is before going from tiles to samples, probably this should
+    // have the same observable effect on viz queries as `kill_pix_post_hi_z`).
+    // The R6xx/R7xx 3D Register Reference Guide says: "If set, all pixels are
+    // killed in the SC after the detail mask. Can be used for performance
+    // info".
+    // Detail mask is possibly fine coverage testing (as opposed to coarse
+    // per-tile testing).
+    // Not seen being used by Direct3D 9.
     uint32_t kill_pix_post_detail_mask : 1;  // +8
     uint32_t _pad_9 : 23;                    // +9
   };

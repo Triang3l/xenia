@@ -25,6 +25,7 @@
 #include "xenia/base/hash.h"
 #include "xenia/gpu/command_processor.h"
 #include "xenia/gpu/draw_util.h"
+#include "xenia/gpu/pipeline_state.h"
 #include "xenia/gpu/registers.h"
 #include "xenia/gpu/spirv_shader_translator.h"
 #include "xenia/gpu/vulkan/deferred_command_buffer.h"
@@ -266,10 +267,8 @@ class VulkanCommandProcessor : public CommandProcessor {
                      const uint32_t* host_address,
                      uint32_t dword_count) override;
 
-  bool IssueDraw(xenos::PrimitiveType prim_type, uint32_t index_count,
-                 IndexBufferInfo* index_buffer_info,
-                 bool major_mode_explicit) override;
-  bool IssueCopy() override;
+  bool IssueDraw() override;
+  bool IssueCopy();
 
   void InitializeTrace() override;
 
@@ -425,13 +424,13 @@ class VulkanCommandProcessor : public CommandProcessor {
   void DestroyScratchBuffer();
 
   void UpdateDynamicState(const draw_util::ViewportInfo& viewport_info,
-                          bool primitive_polygonal,
-                          reg::RB_DEPTHCONTROL normalized_depth_control);
+                          const PrimitiveState& primitive_state,
+                          const DepthStencilState& depth_stencil_state);
   void UpdateSystemConstantValues(
-      bool primitive_polygonal,
+      const PrimitiveState& primitive_state,
       const PrimitiveProcessor::ProcessingResult& primitive_processing_result,
       bool shader_32bit_index_dma, const draw_util::ViewportInfo& viewport_info,
-      uint32_t used_texture_mask, reg::RB_DEPTHCONTROL normalized_depth_control,
+      uint32_t used_texture_mask, const DepthStencilState& depth_stencil_state,
       uint32_t normalized_color_mask);
   bool UpdateBindings(const VulkanShader* vertex_shader,
                       const VulkanShader* pixel_shader);

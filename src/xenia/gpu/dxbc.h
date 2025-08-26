@@ -86,8 +86,9 @@ namespace dxbc {
 //   level deep), however, FXC moves the inner index operand to r# first in this
 //   case.
 //
-// For bytecode structure, see d3d12TokenizedProgramFormat.hpp from the Windows
-// Driver Kit, and DXILConv from DirectX Shader Compiler.
+// For the bytecode structure, see D3D12TokenizedProgramFormat.hpp from
+// https://github.com/microsoft/DirectX-Headers or the Windows Driver Kit, and
+// DXILConv from the DirectX Shader Compiler.
 //
 // Avoid using uninitialized register components - such as registers written to
 // in "if" and not in "else", but then used outside unconditionally or with a
@@ -111,7 +112,7 @@ namespace dxbc {
 //   - d3d12shader.h from the Windows SDK
 //   - DxbcSignatures.h from DXILConv
 // - SHEX:
-//   - d3d12TokenizedProgramFormat.hpp from the Windows Driver Kit
+//   - D3D12TokenizedProgramFormat.hpp from Microsoft/DirectX-Headers
 // - SFI0:
 //   - DXBCUtils.h from the D3D12 Translation Layer
 // - STAT:
@@ -2117,7 +2118,7 @@ class Assembler {
     uint32_t operands_length = operand.GetLength();
     code_.reserve(code_.size() + 2 + operands_length);
     // Constant interpolation mode is set in FXC output at least for
-    // SV_IsFrontFace, despite the comment in d3d12TokenizedProgramFormat.hpp
+    // SV_IsFrontFace, despite the comment in D3D12TokenizedProgramFormat.hpp
     // saying bits 11:23 are ignored.
     code_.push_back(OpcodeToken(Opcode::kDclInputPSSGV, 1 + operands_length) |
                     (uint32_t(InterpolationMode::kConstant) << 11));

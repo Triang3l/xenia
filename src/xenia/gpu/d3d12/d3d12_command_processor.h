@@ -32,6 +32,7 @@
 #include "xenia/gpu/draw_util.h"
 #include "xenia/gpu/dxbc_shader.h"
 #include "xenia/gpu/dxbc_shader_translator.h"
+#include "xenia/gpu/pipeline_state.h"
 #include "xenia/gpu/registers.h"
 #include "xenia/gpu/xenos.h"
 #include "xenia/kernel/kernel_state.h"
@@ -228,10 +229,8 @@ class D3D12CommandProcessor : public CommandProcessor {
                      const uint32_t* host_address,
                      uint32_t dword_count) override;
 
-  bool IssueDraw(xenos::PrimitiveType primitive_type, uint32_t index_count,
-                 IndexBufferInfo* index_buffer_info,
-                 bool major_mode_explicit) override;
-  bool IssueCopy() override;
+  bool IssueDraw() override;
+  bool IssueCopy();
 
   void InitializeTrace() override;
 
@@ -364,15 +363,14 @@ class D3D12CommandProcessor : public CommandProcessor {
 
   void UpdateFixedFunctionState(const draw_util::ViewportInfo& viewport_info,
                                 const draw_util::Scissor& scissor,
-                                bool primitive_polygonal,
-                                reg::RB_DEPTHCONTROL normalized_depth_control);
+                                const DepthStencilState& depth_stencil_state);
   void UpdateSystemConstantValues(bool shared_memory_is_uav,
-                                  bool primitive_polygonal,
+                                  const PrimitiveState& primitive_state,
                                   uint32_t line_loop_closing_index,
                                   xenos::Endian index_endian,
                                   const draw_util::ViewportInfo& viewport_info,
                                   uint32_t used_texture_mask,
-                                  reg::RB_DEPTHCONTROL normalized_depth_control,
+                                  const DepthStencilState& depth_stencil_state,
                                   uint32_t normalized_color_mask);
   bool UpdateBindings(const D3D12Shader* vertex_shader,
                       const D3D12Shader* pixel_shader,

@@ -572,7 +572,7 @@ void RenderTargetCache::ClearCache() {
 void RenderTargetCache::BeginFrame() { ResetAccumulatedRenderTargets(); }
 
 bool RenderTargetCache::Update(bool is_rasterization_done,
-                               reg::RB_DEPTHCONTROL normalized_depth_control,
+                               const DepthStencilState& depth_stencil_state,
                                uint32_t normalized_color_mask,
                                const Shader& vertex_shader) {
   const RegisterFile& regs = register_file();
@@ -637,8 +637,8 @@ bool RenderTargetCache::Update(bool is_rasterization_done,
   uint32_t rts_are_64bpp = 0;
   uint32_t color_rts_are_gamma = 0;
   if (is_rasterization_done) {
-    if (normalized_depth_control.z_enable ||
-        normalized_depth_control.stencil_enable) {
+    if (depth_stencil_state.depth_control.z_enable ||
+        depth_stencil_state.depth_control.stencil_enable) {
       depth_and_color_rts_used_bits |= 1;
       auto rb_depth_info = regs.Get<reg::RB_DEPTH_INFO>();
       edram_bases[0] = rb_depth_info.depth_base;

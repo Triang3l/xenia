@@ -170,6 +170,25 @@ float Float20e4To32(uint32_t f24) {
       uint32_t(((exponent + 112) << 23) | (mantissa << 3)));
 }
 
+const uint8_t kColorRenderTargetFormatComponentMasks[16] = {
+    0b1111,  // 8_8_8_8
+    0b1111,  // 8_8_8_8_GAMMA
+    0b1111,  // 2_10_10_10
+    0b1111,  // 2_10_10_10_FLOAT
+    0b0011,  // 16_16
+    0b1111,  // 16_16_16_16
+    0b0011,  // 16_16_FLOAT
+    0b1111,  // 16_16_16_16_FLOAT
+    0b0000,  // Invalid
+    0b0000,  // Invalid
+    0b1111,  // 2_10_10_10_AS_10_10_10_10
+    0b0000,  // Invalid
+    0b1111,  // 2_10_10_10_FLOAT_AS_16_16_16_16
+    0b0000,  // Invalid
+    0b0001,  // 32_FLOAT
+    0b0011,  // 32_32_FLOAT
+};
+
 const char* GetColorRenderTargetFormatName(ColorRenderTargetFormat format) {
   switch (format) {
     case ColorRenderTargetFormat::k_8_8_8_8:

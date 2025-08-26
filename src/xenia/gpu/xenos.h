@@ -49,7 +49,7 @@ enum class PrimitiveType : uint32_t {
   kTriangleList = 0x04,
   kTriangleFan = 0x05,
   kTriangleStrip = 0x06,
-  kTriangleWithWFlags = 0x07,
+  kTriangleListWithWFlags = 0x07,
   kRectangleList = 0x08,
   kLineLoop = 0x0C,
   kQuadList = 0x0D,
@@ -71,9 +71,10 @@ enum class PrimitiveType : uint32_t {
   k2DLineStrip = 0x15,
   k2DTriStrip = 0x16,
 
-  // Tessellation patches when VGT_OUTPUT_PATH_CNTL::path_select is
-  // VGTOutputPath::kTessellationEnable. The vertex shader receives the patch
-  // index rather than control point indices.
+  // Tessellation patches when VGT_OUTPUT_PATH_CNTL::path_select (in the
+  // explicit major mode) is VGTOutputPath::kTessellationEnable.
+  // The vertex shader receives the patch index rather than control point
+  // indices.
   // With non-adaptive tessellation, VGT_DRAW_INITIATOR::num_indices is the
   // patch count (4D5307F1 draws single ground patches by passing 1 as the index
   // count). VGT_INDX_OFFSET is also applied to the patch index - 4D5307F1 uses
@@ -326,6 +327,9 @@ constexpr bool IsColorRenderTargetFormat64bpp(ColorRenderTargetFormat format) {
          format == ColorRenderTargetFormat::k_32_32_FLOAT;
 }
 
+// Masks of the components stored in the render target format.
+extern const uint8_t kColorRenderTargetFormatComponentMasks[16];
+
 inline uint32_t GetColorRenderTargetFormatComponentCount(
     ColorRenderTargetFormat format) {
   switch (format) {
@@ -398,12 +402,21 @@ constexpr float UNorm24To32(uint32_t n24) {
 
 // Scale for conversion of slope scales from PA_SU_POLY_OFFSET_FRONT/BACK_SCALE
 // units to those used when the slope is computed from the difference between
-// adjacent pixels, for conversion from the guest to common host APIs or to
+// adjacent pixels, for conversion from the guest to common host GPU APIs or to
 // calculation using max(|ddx(z)|, |ddy(z)|).
+//
 // "slope computed in subpixels (1/12 or 1/16)" - R5xx Acceleration.
-// But the correct scale for conversion of the slope scale from subpixels to
-// pixels is likely 1/16 according to:
-// https://github.com/mesa3d/mesa/blob/54ad9b444c8e73da498211870e785239ad3ff1aa/src/gallium/drivers/radeonsi/si_state.c#L946
+//
+// The Xenos uses 1/16 subpixels. See how PA_SU_VTX_CNTL::QUANT_MODE values are
+// named X_16_8_FIXED_POINT_* for up to 1/256 (internally all quantization modes
+// coarser than 1/256 still produce .8 fixed-point vertex positions, however the
+// Xenos doesn't support the 1/256 quantization mode, only up to 1/16.
+// https://gitlab.freedesktop.org/mesa/mesa/-/blob/9e9cc629120986fc4ffc4677f6c67618dbd8bb09/src/amd/registers/gfx6.json#L446
+//
+// However, even though the R600 and newer AMD GPUs have 1/256 or even finer
+// rasterization subpixels, the polygon offset slope scale is still specified
+// for 1/16 subpixels on them:
+// https://gitlab.freedesktop.org/mesa/mesa/-/blob/b2ea120732258cbd9de05623338f29e3145d0d34/src/gallium/drivers/radeonsi/si_state.c#L1154
 constexpr float kPolygonOffsetScaleSubpixelUnit = 1.0f / 16.0f;
 
 constexpr uint32_t kColorRenderTargetFormatBits = 4;
@@ -704,7 +717,11 @@ enum class StencilOp : uint32_t {
   kDecrementWrap = 7,
 };
 
-// adreno_rb_blend_factor
+// Adreno 2xx BlendOpX.
+// For modes other that kSrcAlphaSaturate:
+// Bit 0 - subtract from 1.
+// Bit 1 - RGBA (0) or AAAA (1).
+// Bits 3:2 - factor: zero (0), source (1), destination (2), constant (3).
 enum class BlendFactor : uint32_t {
   kZero = 0,
   kOne = 1,
@@ -721,7 +738,6 @@ enum class BlendFactor : uint32_t {
   kConstantAlpha = 14,
   kOneMinusConstantAlpha = 15,
   kSrcAlphaSaturate = 16,
-  // SRC1 added on Adreno.
 };
 
 enum class BlendOp : uint32_t {

@@ -13,9 +13,12 @@
 // Must be included before D3D and DXGI for things like NOMINMAX.
 #include "xenia/base/platform_win.h"
 
+// Include the Direct3D headers from DirectX-Headers before the system DirectX
+// headers, so that deeper includes like dxgiformats.h are up to date.
+#include "third_party/DirectX-Headers/include/directx/d3d12.h"
+#include "third_party/DirectX-Headers/include/directx/d3d12sdklayers.h"
+
 #include <DXProgrammableCapture.h>
-#include <d3d12.h>
-#include <d3d12sdklayers.h>
 #include <d3dcompiler.h>
 #include <dxgi1_5.h>
 #include <dxgidebug.h>

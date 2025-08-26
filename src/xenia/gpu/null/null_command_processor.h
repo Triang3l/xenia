@@ -40,10 +40,7 @@ class NullCommandProcessor : public CommandProcessor {
                      const uint32_t* host_address,
                      uint32_t dword_count) override;
 
-  bool IssueDraw(xenos::PrimitiveType prim_type, uint32_t index_count,
-                 IndexBufferInfo* index_buffer_info,
-                 bool major_mode_explicit) override;
-  bool IssueCopy() override;
+  bool IssueDraw() override;
 
   void InitializeTrace() override;
 };

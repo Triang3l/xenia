@@ -23,6 +23,7 @@
 #include "xenia/base/cvar.h"
 #include "xenia/gpu/draw_extent_estimator.h"
 #include "xenia/gpu/draw_util.h"
+#include "xenia/gpu/pipeline_state.h"
 #include "xenia/gpu/register_file.h"
 #include "xenia/gpu/registers.h"
 #include "xenia/gpu/shader.h"
@@ -212,7 +213,7 @@ class RenderTargetCache {
   virtual void BeginFrame();
 
   virtual bool Update(bool is_rasterization_done,
-                      reg::RB_DEPTHCONTROL normalized_depth_control,
+                      const DepthStencilState& depth_stencil_state,
                       uint32_t normalized_color_mask,
                       const Shader& vertex_shader);
 

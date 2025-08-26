@@ -263,7 +263,7 @@ bool VulkanPipelineCache::ConfigurePipeline(
     VulkanShader::VulkanTranslation* vertex_shader,
     VulkanShader::VulkanTranslation* pixel_shader,
     const PrimitiveProcessor::ProcessingResult& primitive_processing_result,
-    reg::RB_DEPTHCONTROL normalized_depth_control,
+    const DepthStencilState& depth_stencil_state,
     uint32_t normalized_color_mask,
     VulkanRenderTargetCache::RenderPassKey render_pass_key,
     VkPipeline& pipeline_out,
@@ -278,10 +278,10 @@ bool VulkanPipelineCache::ConfigurePipeline(
   }
 
   PipelineDescription description;
-  if (!GetCurrentStateDescription(
-          vertex_shader, pixel_shader, primitive_processing_result,
-          normalized_depth_control, normalized_color_mask, render_pass_key,
-          description)) {
+  if (!GetCurrentStateDescription(vertex_shader, pixel_shader,
+                                  primitive_processing_result,
+                                  depth_stencil_state, normalized_color_mask,
+                                  render_pass_key, description)) {
     return false;
   }
   if (last_pipeline_ && last_pipeline_->first == description) {
@@ -506,7 +506,7 @@ bool VulkanPipelineCache::GetCurrentStateDescription(
     const VulkanShader::VulkanTranslation* vertex_shader,
     const VulkanShader::VulkanTranslation* pixel_shader,
     const PrimitiveProcessor::ProcessingResult& primitive_processing_result,
-    reg::RB_DEPTHCONTROL normalized_depth_control,
+    const DepthStencilState& depth_stencil_state,
     uint32_t normalized_color_mask,
     VulkanRenderTargetCache::RenderPassKey render_pass_key,
     PipelineDescription& description_out) const {
@@ -630,42 +630,28 @@ bool VulkanPipelineCache::GetCurrentStateDescription(
   if (render_target_cache_.GetPath() ==
       RenderTargetCache::Path::kHostRenderTargets) {
     if (render_pass_key.depth_and_color_used & 1) {
-      if (normalized_depth_control.z_enable) {
-        description_out.depth_write_enable =
-            normalized_depth_control.z_write_enable;
-        description_out.depth_compare_op = normalized_depth_control.zfunc;
-      } else {
-        description_out.depth_compare_op = xenos::CompareFunction::kAlways;
-      }
-      if (normalized_depth_control.stencil_enable) {
+      description_out.depth_write_enable =
+          depth_stencil_state.depth_control.z_write_enable;
+      description_out.depth_compare_op =
+          depth_stencil_state.depth_control.zfunc;
+      if (depth_stencil_state.depth_control.stencil_enable) {
         description_out.stencil_test_enable = 1;
         description_out.stencil_front_fail_op =
-            normalized_depth_control.stencilfail;
+            depth_stencil_state.depth_control.stencilfail;
         description_out.stencil_front_pass_op =
-            normalized_depth_control.stencilzpass;
+            depth_stencil_state.depth_control.stencilzpass;
         description_out.stencil_front_depth_fail_op =
-            normalized_depth_control.stencilzfail;
+            depth_stencil_state.depth_control.stencilzfail;
         description_out.stencil_front_compare_op =
-            normalized_depth_control.stencilfunc;
-        if (primitive_polygonal && normalized_depth_control.backface_enable) {
-          description_out.stencil_back_fail_op =
-              normalized_depth_control.stencilfail_bf;
-          description_out.stencil_back_pass_op =
-              normalized_depth_control.stencilzpass_bf;
-          description_out.stencil_back_depth_fail_op =
-              normalized_depth_control.stencilzfail_bf;
-          description_out.stencil_back_compare_op =
-              normalized_depth_control.stencilfunc_bf;
-        } else {
-          description_out.stencil_back_fail_op =
-              description_out.stencil_front_fail_op;
-          description_out.stencil_back_pass_op =
-              description_out.stencil_front_pass_op;
-          description_out.stencil_back_depth_fail_op =
-              description_out.stencil_front_depth_fail_op;
-          description_out.stencil_back_compare_op =
-              description_out.stencil_front_compare_op;
-        }
+            depth_stencil_state.depth_control.stencilfunc;
+        description_out.stencil_back_fail_op =
+            depth_stencil_state.depth_control.stencilfail_bf;
+        description_out.stencil_back_pass_op =
+            depth_stencil_state.depth_control.stencilzpass_bf;
+        description_out.stencil_back_depth_fail_op =
+            depth_stencil_state.depth_control.stencilzfail_bf;
+        description_out.stencil_back_compare_op =
+            depth_stencil_state.depth_control.stencilfunc_bf;
       }
     }
 

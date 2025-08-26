@@ -27,33 +27,6 @@ namespace xe {
 namespace gpu {
 namespace draw_util {
 
-constexpr bool IsPrimitiveLine(bool vgt_output_path_is_tessellation_enable,
-                               xenos::PrimitiveType type) {
-  if (vgt_output_path_is_tessellation_enable &&
-      type == xenos::PrimitiveType::kLinePatch) {
-    // For patch primitive types, the major mode is always explicit, so just
-    // checking if VGT_OUTPUT_PATH_CNTL::path_select is kTessellationEnable is
-    // enough.
-    return true;
-  }
-  switch (type) {
-    case xenos::PrimitiveType::kLineList:
-    case xenos::PrimitiveType::kLineStrip:
-    case xenos::PrimitiveType::kLineLoop:
-    case xenos::PrimitiveType::k2DLineStrip:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
-
-inline bool IsPrimitiveLine(const RegisterFile& regs) {
-  return IsPrimitiveLine(regs.Get<reg::VGT_OUTPUT_PATH_CNTL>().path_select ==
-                             xenos::VGTOutputPath::kTessellationEnable,
-                         regs.Get<reg::VGT_DRAW_INITIATOR>().prim_type);
-}
-
 // Polygonal primitive types (not including points and lines) are rasterized as
 // triangles, have front and back faces, and also support face culling and fill
 // modes (polymode_front_ptype, polymode_back_ptype). Other primitive types are
@@ -76,7 +49,7 @@ constexpr bool IsPrimitivePolygonal(bool vgt_output_path_is_tessellation_enable,
     case xenos::PrimitiveType::kTriangleList:
     case xenos::PrimitiveType::kTriangleFan:
     case xenos::PrimitiveType::kTriangleStrip:
-    case xenos::PrimitiveType::kTriangleWithWFlags:
+    case xenos::PrimitiveType::kTriangleListWithWFlags:
     case xenos::PrimitiveType::kQuadList:
     case xenos::PrimitiveType::kQuadStrip:
     case xenos::PrimitiveType::kPolygon:
@@ -110,10 +83,11 @@ bool IsRasterizationPotentiallyDone(const RegisterFile& regs,
 
 // Direct3D 10.1+ standard sample positions, also used in Vulkan, for
 // calculations related to host MSAA, in 1/16th of a pixel.
+// TODO(Triang3l): Remove in favor of hw::kHostMSAAStandardSampleLocations when
+// the shader translators are moved to separate static libraries linked to
+// xenia-gpu-hw.
 extern const int8_t kD3D10StandardSamplePositions2x[2][2];
 extern const int8_t kD3D10StandardSamplePositions4x[4][2];
-
-reg::RB_DEPTHCONTROL GetNormalizedDepthControl(const RegisterFile& regs);
 
 // Direct3D 9 and Xenos constant polygon offset is an absolute floating-point
 // value.
@@ -286,8 +260,7 @@ void GetHostViewportInfo(const RegisterFile& regs,
                          uint32_t draw_resolution_scale_x,
                          uint32_t draw_resolution_scale_y,
                          bool origin_bottom_left, uint32_t x_max,
-                         uint32_t y_max, bool allow_reverse_z,
-                         reg::RB_DEPTHCONTROL normalized_depth_control,
+                         uint32_t y_max, bool allow_reverse_z, bool z_enable,
                          bool convert_z_to_float24, bool full_float24_in_0_to_1,
                          bool pixel_shader_writes_depth,
                          ViewportInfo& viewport_info_out);
