@@ -447,14 +447,25 @@ constexpr uint32_t kFormatBits = 6;
 
 // a2xx_sq_surfaceformat +
 // https://github.com/indirivacua/RAGE-Console-Texture-Editor/blob/master/Console.Xbox360.Graphics.pas
+// The details of many Xenos-specific formats, especially the block-compressed
+// formats, are documented in:
+// https://fileadmin.cs.lth.se/cs/Personal/Michael_Doggett/talks/unc-xenos-doggett.pdf
 enum class TextureFormat : uint32_t {
   k_1_REVERSE = 0,
   k_1 = 1,
   k_8 = 2,
+  // On R6xx/R7xx, the alpha of 1_5_5_5 is always unsigned, according to the 3D
+  // Register Reference Guide.
   k_1_5_5_5 = 3,
   k_5_6_5 = 4,
   k_6_5_5 = 5,
   k_8_8_8_8 = 6,
+  // On R6xx through early R8xx (Evergreen), the alpha of 2_10_10_10 respects
+  // the signedness in the fetch constant. It was always unsigned only in some
+  // later AMD GPU generations: starting from late R8xx (Llano, Northern
+  // Islands), until Stoney Ridge and GFX9 (Vega) according to Mesa.
+  // TODO(Triang3l): For signed, is the 2-bit alpha signed or unsigned on the
+  // Xenos specifically?
   k_2_10_10_10 = 7,
   // Possibly similar to k_8, but may be storing alpha instead of red when
   // resolving/memexporting, though not exactly known. From the point of view of
@@ -471,14 +482,12 @@ enum class TextureFormat : uint32_t {
   k_8_A = 8,
   k_8_B = 9,
   k_8_8 = 10,
-  // Though it's unknown what exactly REP means, likely it's "repeating
-  // fraction" (the term used for normalized fixed-point formats, UNORM in
-  // particular for unsigned signedness - 0.0 to 1.0 range, like in
-  // Direct3D 10+, unlike the 0.0 to 255.0 range for D3DFMT_R8G8_B8G8 and
-  // D3DFMT_G8R8_G8B8 in Direct3D 9). 54540829 uses k_Y1_Cr_Y0_Cb_REP directly
-  // as UNORM.
   k_Cr_Y1_Cb_Y0_REP = 11,
-  // Used for videos in 54540829.
+  // Used for videos in 54540829 as UNorm (0...255 stored, 0...1 sampled).
+  // However, PC Direct3D 9 provides D3DFMT_G8R8_G8B8 as UScaled to programmable
+  // pixel shaders and as UNorm to fixed-function pixel shaders. Direct3D 10+
+  // only exposes UNorm via has DXGI_FORMAT_R8G8_B8G8_UNORM. On the Xenos, the
+  // number format is specified in the fetch constant.
   k_Y1_Cr_Y0_Cb_REP = 12,
   k_16_16_EDRAM = 13,
   // Likely same as k_8_8_8_8.
@@ -489,20 +498,61 @@ enum class TextureFormat : uint32_t {
   //   between the intro video and the main menu, in a 8192-point draw.
   k_8_8_8_8_A = 14,
   k_4_4_4_4 = 15,
+  // 10_11_11 and 11_11_10 are normalized and integer formats (not Direct3D
+  // floating-point).
   k_10_11_11 = 16,
   k_11_11_10 = 17,
+  // According to the IPR2015-00325 R400 Document Library Folder History:
+  //   "Change 36785 on 2002/06/27 by frising@ma_frising
+  //   Another 1.40 checkpoint.
+  //   [...]
+  //   -specify that number format conversion will happen for compressed texture
+  //   formats (e.g. DXT/DXN)"
+  // TODO(Triang3l): Research signed and integer encodings for compressed
+  // textures on the Xenos. Primarily, how endpoints are interpreted as signed,
+  // and the range of values when decoded as integer. In addition, how endpoint
+  // comparison is done for signed DXT1 color and DXT5 alpha, DXT5A and DXN is
+  // also important. For DXT1, the endpoints are 3-component vectors, so it's
+  // unlikely that the comparison would be done after decoding, but for formats
+  // based on DXT5 alpha, it's not that clear. BC4 and BC5 in Direct3D 10, also
+  // known as RGTC is OpenGL, which are a superset of ATI1N and ATI2N adding
+  // signedness support to those formats, define the comparison as done after
+  // endpoint decoding (as signed), and the `GL_EXT_texture_compression_rgtc`
+  // specification explicitly mentions that the comparison between -128 and -127
+  // (which both are decoded as -1.0) is undefined.
   k_DXT1 = 18,
   k_DXT2_3 = 19,
   k_DXT4_5 = 20,
   k_16_16_16_16_EDRAM = 21,
+  // According to the IPR2015-00325 R400 Document Library Folder History:
+  //   "Change 84568 on 2003/02/14 by jhoule@MA_JHOULE:
+  //   v 1.66:
+  //   Changed FMT_24_8* formats to only fetch the Z value, as this was the
+  //   original scheme.
+  //   Stencil reads can be done by using FMT_8_8_8_8 using another constant."
+  // On R6xx, the 24_8 depth is always unorm.
   k_24_8 = 22,
   k_24_8_FLOAT = 23,
   k_16 = 24,
   k_16_16 = 25,
   k_16_16_16_16 = 26,
+  // 16_EXPAND is stored as 16_FLOAT, but according to the IPR2015-00325 R400
+  // Document Library Folder History:
+  //   "Change 58369 on 2002/10/21 by frising@ma_frising
+  //   v.1.55
+  //   [...]
+  //   - *16_EXPAND is converted to 16.16 signed fixed point now."
   k_16_EXPAND = 27,
   k_16_16_EXPAND = 28,
   k_16_16_16_16_EXPAND = 29,
+  // According to DirectXMath prior to 3.04, and the behavior of `vpkd3d128`,
+  // the Xenos 16-bit floating-point doesn't have encodings for infinity and
+  // NaN, instead the format can store values up to 131008:
+  // https://github.com/microsoft/DirectXMath/commit/27f790ebf6bd4bef72777d316540250148596f03
+  // (see `DirectXPackedVector.inl`).
+  // The OpenGL ES 2.0 extensions `GL_OES_vertex_half_float` (created by ATI in
+  // 2005) and `GL_OES_texture_float` and also allow implementations (such as
+  // the Adreno 200) to use this encoding.
   k_16_FLOAT = 30,
   k_16_16_FLOAT = 31,
   k_16_16_16_16_FLOAT = 32,
@@ -514,6 +564,11 @@ enum class TextureFormat : uint32_t {
   k_32_32_32_32_FLOAT = 38,
   k_32_AS_8 = 39,
   k_32_AS_8_8 = 40,
+  // According to the IPR2015-00325 R400 Document Library Folder History:
+  //   "Change 58369 on 2002/10/21 by frising@ma_frising
+  //   v.1.55
+  //   [...]
+  //   - *MPEG is clamped to [-256..255] pre filter (was [-255..255])"
   k_16_MPEG = 41,
   k_16_16_MPEG = 42,
   k_8_INTERLACED = 43,
@@ -522,7 +577,38 @@ enum class TextureFormat : uint32_t {
   k_16_INTERLACED = 46,
   k_16_MPEG_INTERLACED = 47,
   k_16_16_MPEG_INTERLACED = 48,
+  // ATI2N (also known as BC5, 3Dc and RGTC) - two components encoded like DXT5
+  // alpha.
+  //
+  // According to the IPR2015-00325 R400 Testing Folder History:
+  //   "Change 98672 on 2003/05/01 by mdoggett@mdoggett_r400_linux_local
+  //   Added RF expand from 13 bit output from DXN to 16 bits."
+  //
+  // Preferably, the host should decode DXT5A and DXN with at least 16 bits of
+  // precision for the result. Direct3D 10+ requires such precision for BC4 and
+  // BC5, however, other host APIs, including Vulkan, may have more relaxed
+  // requirements.
+  //
+  // Also according to the IPR2015-00325 R400 Document Library Folder History:
+  //   "Change 119483 on 2003/09/04 by frising@frising_r400_win_marlboro
+  //   v.1.77
+  //   -Added new compressed texture formats: FMT_DXT3A, FMT_DXT5A and FMT_CTX1
+  //   along with associated documentation.
+  //   -all these formats support degamma
+  //   -DXN now also supports degamma"
   k_DXN = 49,
+  // According to the IPR2015-00325 R400 Document Library Folder History:
+  //   "Change 59151 on 2002/10/24 by frising@ma_frising
+  //   [...]
+  //   - Update DATA_FORMAT note 7.) to say:
+  //   "7.) Channels being degamm'd remain unsigned repeating fraction after
+  //   degamma.
+  //   Enabling degamma in any channel does not change the format in which the
+  //   data is stored in the L2 cache. This enables software to make trade-offs
+  //   between high quality degamma and performance. Specifically, formats
+  //   FMT_8_8_8_8, FMT_DXT1, FMT_DXT2_3, and FMT_DXT4_5 are stored in the L2
+  //   cache as 4x8 while their *_AS_16_16_16_16 counterparts are stored as
+  //   4x16."
   k_8_8_8_8_AS_16_16_16_16 = 50,
   k_DXT1_AS_16_16_16_16 = 51,
   k_DXT2_3_AS_16_16_16_16 = 52,
@@ -530,10 +616,26 @@ enum class TextureFormat : uint32_t {
   k_2_10_10_10_AS_16_16_16_16 = 54,
   k_10_11_11_AS_16_16_16_16 = 55,
   k_11_11_10_AS_16_16_16_16 = 56,
+  // According to the IPR2015-00325 R400 Document Library Folder History:
+  //   "Change 108406 on 2003/06/27 by frising@frising_r400_win_marlboro
+  //   v.1.73
+  //   -Add FMT_32_32_32_FLOAT vertex only format"
   k_32_32_32_FLOAT = 57,
+  // One 4-bit component encoded like DXT3 alpha.
   k_DXT3A = 58,
+  // ATI1N (also known as BC4) - one component encoded like DXT5 alpha.
+  // See DXN for more information.
   k_DXT5A = 59,
+  // Two components in 4x4 blocks: 8_8 endpoints, and 2-bit interpolation
+  // factors like in DXT2-5 RGB.
+  // In the guest GPU's native (little) endian, according to the usage of the
+  // format in 4D5307E6, the endpoint bytes in the first 32 bits of a block are
+  // ordered as G0 R0 G1 R1.
   k_CTX1 = 60,
+  // 4x4 blocks of RGBA with 1 bit per component, each pixel packed in 4 bits
+  // like in DXT3 alpha.
+  // Used in 4D53085B in lighting calculations, particularly for T- and H-shaped
+  // beams in the beginning of Winter Contingency.
   k_DXT3A_AS_1_1_1_1 = 61,
   k_8_8_8_8_GAMMA_EDRAM = 62,
   k_2_10_10_10_FLOAT_EDRAM = 63,

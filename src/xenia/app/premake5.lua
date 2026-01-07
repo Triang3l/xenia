@@ -12,6 +12,7 @@ project("xenia-app")
     "xenia-core",
     "xenia-cpu",
     "xenia-gpu",
+    "xenia-gpu-hw",
     "xenia-gpu-null",
     "xenia-gpu-vulkan",
     "xenia-hid",

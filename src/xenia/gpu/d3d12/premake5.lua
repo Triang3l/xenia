@@ -10,11 +10,14 @@ project("xenia-gpu-d3d12")
     "fmt",
     "xenia-base",
     "xenia-gpu",
+    "xenia-gpu-hw",
+    "xenia-gpu-hw-wgf",
     "xenia-ui",
     "xenia-ui-d3d12",
     "xxhash",
   })
   local_platform_files()
+  local_platform_files("../hw/wgf/d3d12")
   files({
     "../shaders/bytecode/d3d12_5_1/*.h",
   })
@@ -32,6 +35,8 @@ project("xenia-gpu-d3d12-trace-viewer")
     "xenia-cpu",
     "xenia-gpu",
     "xenia-gpu-d3d12",
+    "xenia-gpu-hw",
+    "xenia-gpu-hw-wgf",
     "xenia-hid",
     "xenia-hid-nop",
     "xenia-kernel",
@@ -83,6 +88,8 @@ project("xenia-gpu-d3d12-trace-dump")
     "xenia-cpu",
     "xenia-gpu",
     "xenia-gpu-d3d12",
+    "xenia-gpu-hw",
+    "xenia-gpu-hw-wgf",
     "xenia-hid",
     "xenia-hid-nop",
     "xenia-kernel",

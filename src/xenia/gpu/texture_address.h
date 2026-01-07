@@ -10,7 +10,10 @@
 #ifndef XENIA_GPU_TEXTURE_ADDRESS_H_
 #define XENIA_GPU_TEXTURE_ADDRESS_H_
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
+#include <functional>
 
 #include "xenia/base/assert.h"
 
@@ -36,6 +39,31 @@ namespace texture_address {
 //   - 4E4D083E: Memory allocated for a linear 1280x720 8_8_8_8 texture tightly,
 //     must not access the data in the padding after aligning to 32x32
 //     (resulting in 1280x736) via the guest CPU memory mappings.
+
+// Maximum logical texture sizes that can be specified in a fetch constant.
+
+constexpr unsigned int kMax1DWidthPixelsLog2 = 24;
+constexpr uint32_t kMax1DWidthPixels = uint32_t(1) << kMax1DWidthPixelsLog2;
+
+constexpr unsigned int kMax2DWidthHeightPixelsLog2 = 13;
+constexpr uint32_t kMax2DWidthHeightPixels = uint32_t(1)
+                                             << kMax2DWidthHeightPixelsLog2;
+constexpr unsigned int kMax2DStackLayersLog2 = 6;
+constexpr uint32_t kMax2DStackLayers = uint32_t(1) << kMax2DStackLayersLog2;
+
+constexpr unsigned int kMax3DWidthHeightPixelsLog2 = 11;
+constexpr uint32_t kMax3DWidthHeightPixels = uint32_t(1)
+                                             << kMax3DWidthHeightPixelsLog2;
+constexpr unsigned int kMax3DDepthPixelsLog2 = 10;
+constexpr uint32_t kMax3DDepthPixels = uint32_t(1) << kMax3DDepthPixelsLog2;
+
+// Subresource alignment (this is also the base and mips address granularity in
+// a texture fetch constant), as well as the index of the bit in a tiled address
+// starting from which there are no bank and pipe selection and interleave bits.
+constexpr unsigned int kPageBytesLog2 = 12;
+constexpr uint32_t kPageBytes = uint32_t(1) << kPageBytesLog2;
+
+constexpr unsigned int kStoragePitchBitCount = 14;
 
 // Level pitch (or width for non-base mip levels), height, and depth (for 3D
 // textures - stacked 2D textures use the exact array layer count for the stride
@@ -236,6 +264,50 @@ inline int64_t Tiled3D(const int32_t x, const int32_t y, const int32_t z,
   const uint32_t pipe = ((x >> 3) & 0b11) ^ (bank << 1);
   return TiledCombine(outer_inner_bytes, bank, pipe, y & 1);
 }
+
+// Calculation of 2D or 3D subregions of texture subresource storage extents
+// that are contained within the specified range of 4 KB pages.
+//
+// The primary use of these functions is splitting operations performed on
+// textures into multiple batches when it's not possible to address the memory
+// of the entire texture in a single batch.
+//
+// Note that cases where one element in the memory may be used for multiple
+// elements in the texture raster (such as when the width exceeds the pitch) are
+// currently not supported by this bounding volume calculation, therefore it's
+// recommended to only use it when splitting is actually needed.
+
+struct Box {
+  // The extent is before the offset as the latter is not needed in many cases.
+  // Using uint32_t rather than uint16_t to avoid additional clamping before
+  // intersecting with the box within the logical coordinate space of the
+  // texture.
+  std::array<uint32_t, 3> extent;
+  std::array<uint32_t, 3> offset;
+
+  Box() : extent{1, 1, 1}, offset{0, 0, 0} {}
+
+  Box(const uint32_t w, const uint32_t h = 1, const uint32_t d = 1,
+      const uint32_t x = 0, const uint32_t y = 0, const uint32_t z = 0)
+      : extent{w, h, d}, offset{x, y, z} {}
+
+  Box(const std::array<uint32_t, 3>& extent,
+      const std::array<uint32_t, 3>& offset = {0, 0, 0})
+      : extent(extent), offset(offset) {}
+};
+
+// The pages end argument is exclusive.
+
+void PageBoundingVolumeTiled2D(std::function<void(const Box&)> box_callback,
+                               uint32_t pages_begin, uint32_t pages_end,
+                               const Box& intersect_box,
+                               unsigned int bytes_per_element_log2,
+                               uint32_t pitch_aligned);
+void PageBoundingVolumeTiled3D(std::function<void(const Box&)> box_callback,
+                               uint32_t pages_begin, uint32_t pages_end,
+                               const Box& intersect_box,
+                               unsigned int bytes_per_element_log2,
+                               uint32_t pitch_aligned, uint32_t height_aligned);
 
 }  // namespace texture_address
 }  // namespace gpu

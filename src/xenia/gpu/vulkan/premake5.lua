@@ -11,6 +11,7 @@ project("xenia-gpu-vulkan")
     "glslang-spirv",
     "xenia-base",
     "xenia-gpu",
+    "xenia-gpu-hw",
     "xenia-ui",
     "xenia-ui-vulkan",
     "xxhash",
@@ -19,6 +20,7 @@ project("xenia-gpu-vulkan")
     project_root.."/third_party/Vulkan-Headers/include",
   })
   local_platform_files()
+  local_platform_files("../hw/vulkan")
   files({
     "../shaders/bytecode/vulkan_spirv/*.h",
   })
@@ -35,6 +37,7 @@ project("xenia-gpu-vulkan-trace-viewer")
     "xenia-core",
     "xenia-cpu",
     "xenia-gpu",
+    "xenia-gpu-hw",
     "xenia-gpu-vulkan",
     "xenia-hid",
     "xenia-hid-nop",
@@ -98,6 +101,7 @@ project("xenia-gpu-vulkan-trace-dump")
     "xenia-core",
     "xenia-cpu",
     "xenia-gpu",
+    "xenia-gpu-hw",
     "xenia-gpu-vulkan",
     "xenia-hid",
     "xenia-hid-nop",
