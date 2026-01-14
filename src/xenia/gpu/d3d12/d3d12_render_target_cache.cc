@@ -4786,6 +4786,8 @@ void D3D12RenderTargetCache::PerformTransfersAndResolveClears(
 
     auto& dest_d3d12_rt = *static_cast<D3D12RenderTarget*>(dest_rt);
     RenderTargetKey dest_rt_key = dest_d3d12_rt.key();
+    const D3D12_CPU_DESCRIPTOR_HANDLE dest_rt_load_descriptor_handle =
+        dest_d3d12_rt.GetLoadDescriptorHandle();
 
     // Late barrier in case there was cross-copying that prevented merging of
     // barriers.
@@ -4799,18 +4801,14 @@ void D3D12RenderTargetCache::PerformTransfersAndResolveClears(
     if (!current_transfers.empty()) {
       are_current_command_list_render_targets_valid_ = false;
       if (dest_rt_key.is_depth) {
-        command_list.D3DOMSetRenderTargets(
-            0, nullptr, FALSE, &dest_d3d12_rt.descriptor_draw().GetHandle());
+        command_list.D3DOMSetRenderTargets(0, nullptr, FALSE,
+                                           &dest_rt_load_descriptor_handle);
         if (!use_stencil_reference_output_) {
           command_processor_.SetStencilReference(UINT8_MAX);
         }
       } else {
-        command_list.D3DOMSetRenderTargets(
-            1,
-            &(dest_d3d12_rt.descriptor_load_separate().IsValid()
-                  ? dest_d3d12_rt.descriptor_load_separate().GetHandle()
-                  : dest_d3d12_rt.descriptor_draw().GetHandle()),
-            FALSE, nullptr);
+        command_list.D3DOMSetRenderTargets(1, &dest_rt_load_descriptor_handle,
+                                           FALSE, nullptr);
       }
 
       uint32_t dest_pitch_tiles = dest_rt_key.GetPitchTiles();
@@ -5350,7 +5348,7 @@ void D3D12RenderTargetCache::PerformTransfersAndResolveClears(
             D3D12_RESOURCE_STATE_DEPTH_WRITE);
         command_processor_.SubmitBarriers();
         command_list.D3DClearDepthStencilView(
-            dest_d3d12_rt.descriptor_draw().GetHandle(),
+            dest_rt_load_descriptor_handle,
             D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
             depth_host_clear_value, UINT(clear_value) & 0xFF, 1, &clear_rect);
       } else {
@@ -5425,12 +5423,8 @@ void D3D12RenderTargetCache::PerformTransfersAndResolveClears(
             dest_d3d12_rt.SetResourceState(D3D12_RESOURCE_STATE_RENDER_TARGET),
             D3D12_RESOURCE_STATE_RENDER_TARGET);
         if (clear_via_drawing) {
-          command_list.D3DOMSetRenderTargets(
-              1,
-              &(dest_d3d12_rt.descriptor_load_separate().IsValid()
-                    ? dest_d3d12_rt.descriptor_load_separate().GetHandle()
-                    : dest_d3d12_rt.descriptor_draw().GetHandle()),
-              FALSE, nullptr);
+          command_list.D3DOMSetRenderTargets(1, &dest_rt_load_descriptor_handle,
+                                             FALSE, nullptr);
           are_current_command_list_render_targets_valid_ = true;
           D3D12_VIEWPORT clear_viewport;
           clear_viewport.TopLeftX = float(clear_rect.left);
@@ -5457,11 +5451,9 @@ void D3D12RenderTargetCache::PerformTransfersAndResolveClears(
           command_list.D3DDrawInstanced(3, 1, 0, 0);
         } else {
           command_processor_.SubmitBarriers();
-          command_list.D3DClearRenderTargetView(
-              dest_d3d12_rt.descriptor_load_separate().IsValid()
-                  ? dest_d3d12_rt.descriptor_load_separate().GetHandle()
-                  : dest_d3d12_rt.descriptor_draw().GetHandle(),
-              color_clear_value, 1, &clear_rect);
+          command_list.D3DClearRenderTargetView(dest_rt_load_descriptor_handle,
+                                                color_clear_value, 1,
+                                                &clear_rect);
         }
       }
     }

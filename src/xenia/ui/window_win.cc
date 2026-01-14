@@ -1047,7 +1047,8 @@ LRESULT Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam,
     } break;
 
     case WM_MOVE: {
-      OnMonitorUpdate(MonitorUpdateEvent(this, false));
+      MonitorUpdateEvent e(this, false);
+      OnMonitorUpdate(e);
     } break;
 
     case WM_SIZE: {
@@ -1084,7 +1085,8 @@ LRESULT Win32Window::WndProc(HWND hWnd, UINT message, WPARAM wParam,
     } break;
 
     case WM_DISPLAYCHANGE: {
-      OnMonitorUpdate(MonitorUpdateEvent(this, true));
+      MonitorUpdateEvent e(this, true);
+      OnMonitorUpdate(e);
     } break;
 
     case WM_DPICHANGED: {

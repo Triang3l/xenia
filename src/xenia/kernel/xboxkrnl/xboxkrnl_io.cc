@@ -625,7 +625,7 @@ dword_result_t NtOpenSymbolicLinkObject_entry(
     assert_always();
   }
 
-  if (utf8::starts_with(target_path, "\\??\\")) {
+  if (target_path.starts_with("\\??\\")) {
     target_path = target_path.substr(4);  // Strip the full qualifier
   }
 

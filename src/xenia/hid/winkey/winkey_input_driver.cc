@@ -51,15 +51,15 @@ void WinKeyInputDriver::ParseKeyBinding(ui::VirtualKey output_key,
 
     std::string_view token = source_token;
 
-    if (utf8::starts_with(token, "_")) {
+    if (token.starts_with('_')) {
       key_binding.lowercase = true;
       token = token.substr(1);
-    } else if (utf8::starts_with(token, "^")) {
+    } else if (token.starts_with('^')) {
       key_binding.uppercase = true;
       token = token.substr(1);
     }
 
-    if (utf8::starts_with(token, "0x")) {
+    if (token.starts_with("0x")) {
       token = token.substr(2);
       key_binding.input_key = static_cast<ui::VirtualKey>(
           string_util::from_string<uint16_t>(token, true));

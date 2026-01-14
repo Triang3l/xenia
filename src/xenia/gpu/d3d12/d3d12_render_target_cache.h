@@ -271,6 +271,13 @@ class D3D12RenderTargetCache final : public RenderTargetCache {
       return descriptor_load_separate_;
     }
 
+    D3D12_CPU_DESCRIPTOR_HANDLE GetLoadDescriptorHandle() const {
+      if (descriptor_load_separate_.IsValid()) {
+        return descriptor_load_separate_.GetHandle();
+      }
+      return descriptor_draw_.GetHandle();
+    }
+
     D3D12_RESOURCE_STATES SetResourceState(D3D12_RESOURCE_STATES new_state) {
       D3D12_RESOURCE_STATES old_state = resource_state_;
       resource_state_ = new_state;

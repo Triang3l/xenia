@@ -274,7 +274,7 @@ void ContentManager::CloseOpenedFilesFromContent(
 
   for (const object_ref<XFile>& file : all_files_handles) {
     std::string file_path = file->entry()->absolute_path();
-    bool is_file_inside_content = utf8::starts_with(file_path, resolved_path);
+    bool is_file_inside_content = file_path.starts_with(resolved_path);
 
     if (is_file_inside_content) {
       file->ReleaseHandle();

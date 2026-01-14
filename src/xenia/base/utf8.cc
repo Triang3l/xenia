@@ -358,32 +358,6 @@ bool starts_with(const std::string_view haystack, char32_t needle) {
   return *it == uint32_t(needle);
 }
 
-bool starts_with(const std::string_view haystack,
-                 const std::string_view needle) {
-  if (needle.empty()) {
-    return true;
-  } else if (haystack.empty()) {
-    return false;
-  }
-
-  auto [haystack_begin, haystack_end] = make_citer(haystack);
-  auto [needle_begin, needle_end] = make_citer(needle);
-  auto needle_count = count(needle);
-
-  auto it = haystack_begin;
-  auto end = it;
-  for (size_t i = 0; i < needle_count; ++i) {
-    if (end == haystack_end) {
-      // not enough room in target for search
-      return false;
-    }
-    ++end;
-  }
-
-  auto [sub_start, sub_end] = make_citer(it, end);
-  return std::equal(needle_begin, needle_end, sub_start, sub_end);
-}
-
 bool starts_with_case(const std::string_view haystack,
                       const std::string_view needle) {
   if (needle.empty()) {
@@ -409,33 +383,6 @@ bool starts_with_case(const std::string_view haystack,
   auto [sub_start, sub_end] = make_citer(it, end);
   return std::equal(needle_begin, needle_end, sub_start, sub_end,
                     equal_ascii_case);
-}
-
-bool ends_with(const std::string_view haystack, const std::string_view needle) {
-  if (needle.empty()) {
-    return true;
-  } else if (haystack.empty()) {
-    return false;
-  }
-
-  auto [haystack_begin, haystack_end] = make_citer(haystack);
-  auto [needle_begin, needle_end] = make_citer(needle);
-  auto needle_count = count(needle);
-
-  auto it = haystack_end;
-  auto end = it;
-  --it;
-
-  for (size_t i = 1; i < needle_count; ++i) {
-    if (it == haystack_begin) {
-      // not enough room in target for search
-      return false;
-    }
-    --it;
-  }
-
-  auto [sub_start, sub_end] = make_citer(it, end);
-  return std::equal(needle_begin, needle_end, sub_start, sub_end);
 }
 
 bool ends_with_case(const std::string_view haystack,
@@ -697,7 +644,7 @@ std::string canonicalize_path(const std::string_view path, char32_t separator) {
       // Ensure we don't override the device name.
       if (it != parts.begin()) {
         auto prev = std::prev(it);
-        if (!ends_with(*prev, ":")) {
+        if (!prev->ends_with(':')) {
           it = parts.erase(prev);
         }
       }

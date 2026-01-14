@@ -163,15 +163,15 @@ inline T ifs(const std::string_view value, bool force_hex) {
   std::string_view range = value;
   bool is_hex = force_hex;
   bool is_negative = false;
-  if (utf8::starts_with(range, "-")) {
+  if (range.starts_with('-')) {
     is_negative = true;
     range = range.substr(1);
   }
-  if (utf8::starts_with(range, "0x")) {
+  if (range.starts_with("0x")) {
     is_hex = true;
     range = range.substr(2);
   }
-  if (utf8::ends_with(range, "h")) {
+  if (range.ends_with('h')) {
     is_hex = true;
     range = range.substr(0, range.length() - 1);
   }
@@ -199,15 +199,15 @@ inline T fpfs(const std::string_view value, bool force_hex) {
   std::string_view range = value;
   bool is_hex = force_hex;
   bool is_negative = false;
-  if (utf8::starts_with(range, "-")) {
+  if (range.starts_with('-')) {
     is_negative = true;
     range = range.substr(1);
   }
-  if (utf8::starts_with(range, "0x")) {
+  if (range.starts_with("0x")) {
     is_hex = true;
     range = range.substr(2);
   }
-  if (utf8::ends_with(range, "h")) {
+  if (range.ends_with('h')) {
     is_hex = true;
     range = range.substr(0, range.length() - 1);
   }

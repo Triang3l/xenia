@@ -226,7 +226,7 @@ TEST_CASE("UTF-8 Count", "[utf8]") {
 // TODO(gibbed): hash_fnv1a_case
 
 TEST_CASE("UTF-8 Split", "[utf8]") {
-  std::vector<std::string_view> parts;
+  std::vector<std::u8string_view> parts;
 
   // Danish
   parts = utf8::split(examples::kDanishValues[0], u8"æcå");
@@ -309,16 +309,14 @@ TEST_CASE("UTF-8 Equal Case Z", "[utf8]") {
 // TODO(gibbed): find_any_of_case
 // TODO(gibbed): find_first_of
 // TODO(gibbed): find_first_of_case
-// TODO(gibbed): starts_with
 // TODO(gibbed): starts_with_case
-// TODO(gibbed): ends_with
 // TODO(gibbed): ends_with_case
 // TODO(gibbed): split_path
 
 #define TEST_PATH(func, input, output)                                 \
   do {                                                                 \
-    std::string input_value = input;                                   \
-    std::string output_value = output;                                 \
+    std::u8string input_value = input;                                 \
+    std::u8string output_value = output;                               \
     REQUIRE(func(input_value, '/') == output_value);                   \
     std::replace(input_value.begin(), input_value.end(), '/', '\\');   \
     std::replace(output_value.begin(), output_value.end(), '/', '\\'); \
@@ -327,7 +325,7 @@ TEST_CASE("UTF-8 Equal Case Z", "[utf8]") {
 
 #define TEST_PATH_RAW(func, input, output)                             \
   do {                                                                 \
-    std::string output_value = output;                                 \
+    std::u8string output_value = output;                               \
     REQUIRE(func(input, '/') == output_value);                         \
     std::replace(output_value.begin(), output_value.end(), '/', '\\'); \
     REQUIRE(func(input, '\\') == output_value);                        \
@@ -336,7 +334,7 @@ TEST_CASE("UTF-8 Equal Case Z", "[utf8]") {
 #define TEST_PATHS(func, output, ...)                                      \
   do {                                                                     \
     std::vector<std::string> input_values = {__VA_ARGS__};                 \
-    std::string output_value = output;                                     \
+    std::u8string output_value = output;                                   \
     REQUIRE(func(input_values, '/') == output_value);                      \
     for (auto it = input_values.begin(); it != input_values.end(); ++it) { \
       std::replace((*it).begin(), (*it).end(), '/', '\\');                 \
@@ -349,284 +347,292 @@ TEST_CASE("UTF-8 Join Paths", "[utf8]") {
   TEST_PATHS(utf8::join_paths, u8"");
   TEST_PATHS(utf8::join_paths, u8"foo", u8"foo");
   TEST_PATHS(utf8::join_paths, u8"foo/bar", u8"foo", u8"bar");
-  TEST_PATHS(utf8::join_paths, "X:/foo/bar/baz/qux", u8"X:", u8"foo", u8"bar",
+  TEST_PATHS(utf8::join_paths, u8"X:/foo/bar/baz/qux", u8"X:", u8"foo", u8"bar",
              u8"baz", u8"qux");
 }
 
 // TODO(gibbed): join_guest_paths
 
 TEST_CASE("UTF-8 Fix Path Separators", "[utf8]") {
-  TEST_PATH_RAW(utf8::fix_path_separators, "", "");
-  TEST_PATH_RAW(utf8::fix_path_separators, "\\", "/");
-  TEST_PATH_RAW(utf8::fix_path_separators, "/", "/");
-  TEST_PATH_RAW(utf8::fix_path_separators, "\\foo", "/foo");
-  TEST_PATH_RAW(utf8::fix_path_separators, "\\foo/", "/foo/");
-  TEST_PATH_RAW(utf8::fix_path_separators, "/foo", "/foo");
-  TEST_PATH_RAW(utf8::fix_path_separators, "\\foo/bar\\baz/qux",
-                "/foo/bar/baz/qux");
-  TEST_PATH_RAW(utf8::fix_path_separators, "\\\\foo//bar\\\\baz//qux",
-                "/foo/bar/baz/qux");
-  TEST_PATH_RAW(utf8::fix_path_separators, "foo", "foo");
-  TEST_PATH_RAW(utf8::fix_path_separators, "foo/", "foo/");
-  TEST_PATH_RAW(utf8::fix_path_separators, "foo/bar\\baz/qux",
-                "foo/bar/baz/qux");
-  TEST_PATH_RAW(utf8::fix_path_separators, "foo//bar\\\\baz//qux",
-                "foo/bar/baz/qux");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:", "X:");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:\\", "X:/");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:/", "X:/");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:\\foo", "X:/foo");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:\\foo/", "X:/foo/");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:/foo", "X:/foo");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:\\foo/bar\\baz/qux",
-                "X:/foo/bar/baz/qux");
-  TEST_PATH_RAW(utf8::fix_path_separators, "X:\\\\foo//bar\\\\baz//qux",
-                "X:/foo/bar/baz/qux");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"", u8"");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"\\", u8"/");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"/", u8"/");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"\\foo", u8"/foo");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"\\foo/", u8"/foo/");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"/foo", u8"/foo");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"\\foo/bar\\baz/qux",
+                u8"/foo/bar/baz/qux");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"\\\\foo//bar\\\\baz//qux",
+                u8"/foo/bar/baz/qux");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"foo", u8"foo");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"foo/", u8"foo/");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"foo/bar\\baz/qux",
+                u8"foo/bar/baz/qux");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"foo//bar\\\\baz//qux",
+                u8"foo/bar/baz/qux");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:", u8"X:");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:\\", u8"X:/");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:/", u8"X:/");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:\\foo", u8"X:/foo");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:\\foo/", u8"X:/foo/");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:/foo", u8"X:/foo");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:\\foo/bar\\baz/qux",
+                u8"X:/foo/bar/baz/qux");
+  TEST_PATH_RAW(utf8::fix_path_separators, u8"X:\\\\foo//bar\\\\baz//qux",
+                u8"X:/foo/bar/baz/qux");
 }
 
 // TODO(gibbed): fix_guest_path_separators
 
 TEST_CASE("UTF-8 Find Name From Path", "[utf8]") {
-  TEST_PATH(utf8::find_name_from_path, "/", "");
-  TEST_PATH(utf8::find_name_from_path, "//", "");
-  TEST_PATH(utf8::find_name_from_path, "///", "");
-  TEST_PATH(utf8::find_name_from_path, "C/", "C");
-  TEST_PATH(utf8::find_name_from_path, "/C/", "C");
-  TEST_PATH(utf8::find_name_from_path, "C/D/", "D");
-  TEST_PATH(utf8::find_name_from_path, "/C/D/E/", "E");
-  TEST_PATH(utf8::find_name_from_path, "foo/bar/D/", "D");
-  TEST_PATH(utf8::find_name_from_path, "/foo/bar/E/qux/", "qux");
-  TEST_PATH(utf8::find_name_from_path, "foo/bar/baz/qux/", "qux");
-  TEST_PATH(utf8::find_name_from_path, "foo/bar/baz/qux//", "qux");
-  TEST_PATH(utf8::find_name_from_path, "foo/bar/baz/qux///", "qux");
-  TEST_PATH(utf8::find_name_from_path, "foo/bar/baz/qux.txt", "qux.txt");
-  TEST_PATH(utf8::find_name_from_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ///",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ.txt",
-            "ほげほげ.txt");
-  TEST_PATH(utf8::find_name_from_path, "/foo", "foo");
-  TEST_PATH(utf8::find_name_from_path, "//foo", "foo");
-  TEST_PATH(utf8::find_name_from_path, "///foo", "foo");
-  TEST_PATH(utf8::find_name_from_path, "/foo/bar/baz/qux.txt", "qux.txt");
-  TEST_PATH(utf8::find_name_from_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt",
-            "ほげほげ.txt");
-  TEST_PATH(utf8::find_name_from_path, "X:/foo/bar/baz/qux.txt", "qux.txt");
-  TEST_PATH(utf8::find_name_from_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
-            "ほげほげ");
-  TEST_PATH(utf8::find_name_from_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt",
-            "ほげほげ.txt");
-  TEST_PATH(utf8::find_name_from_path, "X:/ほげ/ぴよ/ふが/ほげら.ほげほげ",
-            "ほげら.ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"/", u8"");
+  TEST_PATH(utf8::find_name_from_path, u8"//", u8"");
+  TEST_PATH(utf8::find_name_from_path, u8"///", u8"");
+  TEST_PATH(utf8::find_name_from_path, u8"C/", u8"C");
+  TEST_PATH(utf8::find_name_from_path, u8"/C/", u8"C");
+  TEST_PATH(utf8::find_name_from_path, u8"C/D/", u8"D");
+  TEST_PATH(utf8::find_name_from_path, u8"/C/D/E/", u8"E");
+  TEST_PATH(utf8::find_name_from_path, u8"foo/bar/D/", u8"D");
+  TEST_PATH(utf8::find_name_from_path, u8"/foo/bar/E/qux/", u8"qux");
+  TEST_PATH(utf8::find_name_from_path, u8"foo/bar/baz/qux/", u8"qux");
+  TEST_PATH(utf8::find_name_from_path, u8"foo/bar/baz/qux//", u8"qux");
+  TEST_PATH(utf8::find_name_from_path, u8"foo/bar/baz/qux///", u8"qux");
+  TEST_PATH(utf8::find_name_from_path, u8"foo/bar/baz/qux.txt", u8"qux.txt");
+  TEST_PATH(utf8::find_name_from_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ/",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ//",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ///",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ.txt",
+            u8"ほげほげ.txt");
+  TEST_PATH(utf8::find_name_from_path, u8"/foo", u8"foo");
+  TEST_PATH(utf8::find_name_from_path, u8"//foo", u8"foo");
+  TEST_PATH(utf8::find_name_from_path, u8"///foo", u8"foo");
+  TEST_PATH(utf8::find_name_from_path, u8"/foo/bar/baz/qux.txt", u8"qux.txt");
+  TEST_PATH(utf8::find_name_from_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt",
+            u8"ほげほげ.txt");
+  TEST_PATH(utf8::find_name_from_path, u8"X:/foo/bar/baz/qux.txt", u8"qux.txt");
+  TEST_PATH(utf8::find_name_from_path, u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path, u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
+            u8"ほげほげ");
+  TEST_PATH(utf8::find_name_from_path,
+            u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt", u8"ほげほげ.txt");
+  TEST_PATH(utf8::find_name_from_path, u8"X:/ほげ/ぴよ/ふが/ほげら.ほげほげ",
+            u8"ほげら.ほげほげ");
 }
 
 // TODO(gibbed): find_name_from_guest_path
 
 TEST_CASE("UTF-8 Find Base Name From Path", "[utf8]") {
-  TEST_PATH(utf8::find_base_name_from_path, "foo/bar/baz/qux.txt", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "foo/bar/baz/qux/", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "foo/bar/baz/qux//", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "foo/bar/baz/qux///", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "C/", "C");
-  TEST_PATH(utf8::find_base_name_from_path, "/C/", "C");
-  TEST_PATH(utf8::find_base_name_from_path, "C/D/", "D");
-  TEST_PATH(utf8::find_base_name_from_path, "/C/D/E/", "E");
-  TEST_PATH(utf8::find_base_name_from_path, "foo/bar/D/", "D");
+  TEST_PATH(utf8::find_base_name_from_path, u8"foo/bar/baz/qux.txt", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"foo/bar/baz/qux/", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"foo/bar/baz/qux//", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"foo/bar/baz/qux///", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"C/", u8"C");
+  TEST_PATH(utf8::find_base_name_from_path, u8"/C/", u8"C");
+  TEST_PATH(utf8::find_base_name_from_path, u8"C/D/", u8"D");
+  TEST_PATH(utf8::find_base_name_from_path, u8"/C/D/E/", u8"E");
+  TEST_PATH(utf8::find_base_name_from_path, u8"foo/bar/D/", u8"D");
   TEST_PATH(utf8::find_base_name_from_path,
-            "ほげ/ぴよ/ふが/ほげら/ほげほげ.txt", "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ///",
-            "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "ほげ/ぴよ/ふが/ほげら.ほげほげ",
-            "ほげら");
-  TEST_PATH(utf8::find_base_name_from_path, "/foo/bar/baz/qux.txt", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "/foo/bar/baz/qux/", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "/foo/bar/baz/qux//", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "/foo/bar/baz/qux///", "qux");
+            u8"ほげ/ぴよ/ふが/ほげら/ほげほげ.txt", u8"ほげほげ");
+  TEST_PATH(utf8::find_base_name_from_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ/",
+            u8"ほげほげ");
   TEST_PATH(utf8::find_base_name_from_path,
-            "/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt", "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "ほげほげ");
+            u8"ほげ/ぴよ/ふが/ほげら/ほげほげ//", u8"ほげほげ");
   TEST_PATH(utf8::find_base_name_from_path,
-            "/ほげ/ぴよ/ふが/ほげら/ほげほげ///", "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "/ほげ/ぴよ/ふが/ほげら.ほげほげ",
-            "ほげら");
-  TEST_PATH(utf8::find_base_name_from_path, "X:/foo/bar/baz/qux.txt", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "X:/foo/bar/baz/qux/", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "X:/foo/bar/baz/qux//", "qux");
-  TEST_PATH(utf8::find_base_name_from_path, "X:/foo/bar/baz/qux///", "qux");
+            u8"ほげ/ぴよ/ふが/ほげら/ほげほげ///", u8"ほげほげ");
+  TEST_PATH(utf8::find_base_name_from_path, u8"ほげ/ぴよ/ふが/ほげら.ほげほげ",
+            u8"ほげら");
+  TEST_PATH(utf8::find_base_name_from_path, u8"/foo/bar/baz/qux.txt", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"/foo/bar/baz/qux/", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"/foo/bar/baz/qux//", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"/foo/bar/baz/qux///", u8"qux");
   TEST_PATH(utf8::find_base_name_from_path,
-            "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt", "ほげほげ");
+            u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt", u8"ほげほげ");
   TEST_PATH(utf8::find_base_name_from_path,
-            "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ/", "ほげほげ");
+            u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ/", u8"ほげほげ");
   TEST_PATH(utf8::find_base_name_from_path,
-            "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ//", "ほげほげ");
+            u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ//", u8"ほげほげ");
   TEST_PATH(utf8::find_base_name_from_path,
-            "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ///", "ほげほげ");
-  TEST_PATH(utf8::find_base_name_from_path, "X:/ほげ/ぴよ/ふが/ほげら.ほげほげ",
-            "ほげら");
+            u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ///", u8"ほげほげ");
+  TEST_PATH(utf8::find_base_name_from_path, u8"/ほげ/ぴよ/ふが/ほげら.ほげほげ",
+            u8"ほげら");
+  TEST_PATH(utf8::find_base_name_from_path, u8"X:/foo/bar/baz/qux.txt",
+            u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"X:/foo/bar/baz/qux/", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"X:/foo/bar/baz/qux//", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path, u8"X:/foo/bar/baz/qux///", u8"qux");
+  TEST_PATH(utf8::find_base_name_from_path,
+            u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ.txt", u8"ほげほげ");
+  TEST_PATH(utf8::find_base_name_from_path,
+            u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ/", u8"ほげほげ");
+  TEST_PATH(utf8::find_base_name_from_path,
+            u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ//", u8"ほげほげ");
+  TEST_PATH(utf8::find_base_name_from_path,
+            u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ///", u8"ほげほげ");
+  TEST_PATH(utf8::find_base_name_from_path,
+            u8"X:/ほげ/ぴよ/ふが/ほげら.ほげほげ", u8"ほげら");
 }
 
 // TODO(gibbed): find_base_name_from_guest_path
 
 TEST_CASE("UTF-8 Find Base Path", "[utf8]") {
-  TEST_PATH(utf8::find_base_path, "", "");
-  TEST_PATH(utf8::find_base_path, "/", "");
-  TEST_PATH(utf8::find_base_path, "//", "");
-  TEST_PATH(utf8::find_base_path, "///", "");
-  TEST_PATH(utf8::find_base_path, "/foo", "");
-  TEST_PATH(utf8::find_base_path, "//foo", "");
-  TEST_PATH(utf8::find_base_path, "///foo", "");
-  TEST_PATH(utf8::find_base_path, "/foo/", "");
-  TEST_PATH(utf8::find_base_path, "/foo//", "");
-  TEST_PATH(utf8::find_base_path, "/foo///", "");
-  TEST_PATH(utf8::find_base_path, "//foo/", "");
-  TEST_PATH(utf8::find_base_path, "//foo//", "");
-  TEST_PATH(utf8::find_base_path, "//foo///", "");
-  TEST_PATH(utf8::find_base_path, "///foo/", "");
-  TEST_PATH(utf8::find_base_path, "///foo//", "");
-  TEST_PATH(utf8::find_base_path, "///foo///", "");
-  TEST_PATH(utf8::find_base_path, "/foo/bar", "/foo");
-  TEST_PATH(utf8::find_base_path, "/foo/bar/", "/foo");
-  TEST_PATH(utf8::find_base_path, "/foo/bar//", "/foo");
-  TEST_PATH(utf8::find_base_path, "/foo/bar///", "/foo");
-  TEST_PATH(utf8::find_base_path, "/foo/bar/baz/qux", "/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "/foo/bar/baz/qux/", "/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "/foo/bar/baz/qux//", "/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "/foo/bar/baz/qux///", "/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ",
-            "/ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "/ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "/ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
-            "/ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "foo", "");
-  TEST_PATH(utf8::find_base_path, "foo/", "");
-  TEST_PATH(utf8::find_base_path, "foo//", "");
-  TEST_PATH(utf8::find_base_path, "foo///", "");
-  TEST_PATH(utf8::find_base_path, "foo/bar", "foo");
-  TEST_PATH(utf8::find_base_path, "foo/bar/", "foo");
-  TEST_PATH(utf8::find_base_path, "foo/bar//", "foo");
-  TEST_PATH(utf8::find_base_path, "foo/bar///", "foo");
-  TEST_PATH(utf8::find_base_path, "foo/bar/baz/qux", "foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "foo/bar/baz/qux/", "foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "foo/bar/baz/qux//", "foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "foo/bar/baz/qux///", "foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ",
-            "ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "ほげ/ぴよ/ふが/ほげら/ほげほげ///",
-            "ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "X:", "");
-  TEST_PATH(utf8::find_base_path, "X:/", "");
-  TEST_PATH(utf8::find_base_path, "X://", "");
-  TEST_PATH(utf8::find_base_path, "X:///", "");
-  TEST_PATH(utf8::find_base_path, "X:/foo", "X:");
-  TEST_PATH(utf8::find_base_path, "X:/foo/", "X:");
-  TEST_PATH(utf8::find_base_path, "X:/foo//", "X:");
-  TEST_PATH(utf8::find_base_path, "X:/foo///", "X:");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar", "X:/foo");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar/", "X:/foo");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar//", "X:/foo");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar///", "X:/foo");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar/baz/qux", "X:/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar/baz/qux/", "X:/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar/baz/qux//", "X:/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "X:/foo/bar/baz/qux///", "X:/foo/bar/baz");
-  TEST_PATH(utf8::find_base_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ",
-            "X:/ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
-            "X:/ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
-            "X:/ほげ/ぴよ/ふが/ほげら");
-  TEST_PATH(utf8::find_base_path, "X:/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
-            "X:/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"", u8"");
+  TEST_PATH(utf8::find_base_path, u8"/", u8"");
+  TEST_PATH(utf8::find_base_path, u8"//", u8"");
+  TEST_PATH(utf8::find_base_path, u8"///", u8"");
+  TEST_PATH(utf8::find_base_path, u8"/foo", u8"");
+  TEST_PATH(utf8::find_base_path, u8"//foo", u8"");
+  TEST_PATH(utf8::find_base_path, u8"///foo", u8"");
+  TEST_PATH(utf8::find_base_path, u8"/foo/", u8"");
+  TEST_PATH(utf8::find_base_path, u8"/foo//", u8"");
+  TEST_PATH(utf8::find_base_path, u8"/foo///", u8"");
+  TEST_PATH(utf8::find_base_path, u8"//foo/", u8"");
+  TEST_PATH(utf8::find_base_path, u8"//foo//", u8"");
+  TEST_PATH(utf8::find_base_path, u8"//foo///", u8"");
+  TEST_PATH(utf8::find_base_path, u8"///foo/", u8"");
+  TEST_PATH(utf8::find_base_path, u8"///foo//", u8"");
+  TEST_PATH(utf8::find_base_path, u8"///foo///", u8"");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar", u8"/foo");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar/", u8"/foo");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar//", u8"/foo");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar///", u8"/foo");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar/baz/qux", u8"/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar/baz/qux/", u8"/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar/baz/qux//", u8"/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"/foo/bar/baz/qux///", u8"/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ",
+            u8"/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
+            u8"/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
+            u8"/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
+            u8"/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"foo", u8"");
+  TEST_PATH(utf8::find_base_path, u8"foo/", u8"");
+  TEST_PATH(utf8::find_base_path, u8"foo//", u8"");
+  TEST_PATH(utf8::find_base_path, u8"foo///", u8"");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar", u8"foo");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar/", u8"foo");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar//", u8"foo");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar///", u8"foo");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar/baz/qux", u8"foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar/baz/qux/", u8"foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar/baz/qux//", u8"foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"foo/bar/baz/qux///", u8"foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ",
+            u8"ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ/",
+            u8"ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ//",
+            u8"ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"ほげ/ぴよ/ふが/ほげら/ほげほげ///",
+            u8"ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"X:", u8"");
+  TEST_PATH(utf8::find_base_path, u8"X:/", u8"");
+  TEST_PATH(utf8::find_base_path, u8"X://", u8"");
+  TEST_PATH(utf8::find_base_path, u8"X:///", u8"");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo", u8"X:");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/", u8"X:");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo//", u8"X:");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo///", u8"X:");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar", u8"X:/foo");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar/", u8"X:/foo");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar//", u8"X:/foo");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar///", u8"X:/foo");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar/baz/qux", u8"X:/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar/baz/qux/", u8"X:/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar/baz/qux//", u8"X:/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"X:/foo/bar/baz/qux///",
+            u8"X:/foo/bar/baz");
+  TEST_PATH(utf8::find_base_path, u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ",
+            u8"X:/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ/",
+            u8"X:/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ//",
+            u8"X:/ほげ/ぴよ/ふが/ほげら");
+  TEST_PATH(utf8::find_base_path, u8"X:/ほげ/ぴよ/ふが/ほげら/ほげほげ///",
+            u8"X:/ほげ/ぴよ/ふが/ほげら");
 }
 
 // TODO(gibbed): find_base_guest_path
 
 TEST_CASE("UTF-8 Canonicalize Path", "[utf8]") {
-  TEST_PATH(utf8::canonicalize_path, "foo/bar/baz/qux", "foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/bar/baz/qux/", "foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/bar/baz/qux//", "foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/bar/baz/qux///", "foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/./baz/qux", "foo/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/./baz/qux/", "foo/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/../baz/qux", "baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/../baz/qux/", "baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/./baz/../qux", "foo/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/./baz/../qux/", "foo/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/./../baz/qux", "baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "foo/./../baz/qux/", "baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "./bar/baz/qux", "bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "./bar/baz/qux/", "bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "../bar/baz/qux", "bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "../bar/baz/qux/", "bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "ほげ/ぴよ/./ふが/../ほげら/ほげほげ",
-            "ほげ/ぴよ/ほげら/ほげほげ");
-  TEST_PATH(utf8::canonicalize_path, "ほげ/ぴよ/./ふが/../ほげら/ほげほげ/",
-            "ほげ/ぴよ/ほげら/ほげほげ");
-  TEST_PATH(utf8::canonicalize_path, "/foo/bar/baz/qux", "/foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/bar/baz/qux/", "/foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/./baz/qux", "/foo/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/./baz/qux/", "/foo/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/../baz/qux", "/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/../baz/qux/", "/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/./baz/../qux", "/foo/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/./baz/../qux/", "/foo/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/./../baz/qux", "/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/foo/./../baz/qux/", "/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/./bar/baz/qux", "/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/./bar/baz/qux/", "/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/../bar/baz/qux", "/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/../bar/baz/qux/", "/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "/ほげ/ぴよ/./ふが/../ほげら/ほげほげ",
-            "/ほげ/ぴよ/ほげら/ほげほげ");
-  TEST_PATH(utf8::canonicalize_path, "/ほげ/ぴよ/./ふが/../ほげら/ほげほげ/",
-            "/ほげ/ぴよ/ほげら/ほげほげ");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/bar/baz/qux",
-            "X:/foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/bar/baz/qux/",
-            "X:/foo/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/./baz/qux", "X:/foo/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/./baz/qux/", "X:/foo/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/../baz/qux", "X:/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/../baz/qux/", "X:/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/./baz/../qux", "X:/foo/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/./baz/../qux/", "X:/foo/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/./../baz/qux", "X:/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/foo/./../baz/qux/", "X:/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/./bar/baz/qux", "X:/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/./bar/baz/qux/", "X:/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/../bar/baz/qux", "X:/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/../bar/baz/qux/", "X:/bar/baz/qux");
-  TEST_PATH(utf8::canonicalize_path, "X:/ほげ/ぴよ/./ふが/../ほげら/ほげほげ",
-            "X:/ほげ/ぴよ/ほげら/ほげほげ");
-  TEST_PATH(utf8::canonicalize_path, "X:/ほげ/ぴよ/./ふが/../ほげら/ほげほげ/",
-            "X:/ほげ/ぴよ/ほげら/ほげほげ");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/bar/baz/qux", u8"foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/bar/baz/qux/", u8"foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/bar/baz/qux//",
+            u8"foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/bar/baz/qux///",
+            u8"foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/./baz/qux", u8"foo/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/./baz/qux/", u8"foo/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/../baz/qux", u8"baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/../baz/qux/", u8"baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/./baz/../qux", u8"foo/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/./baz/../qux/", u8"foo/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/./../baz/qux", u8"baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"foo/./../baz/qux/", u8"baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"./bar/baz/qux", u8"bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"./bar/baz/qux/", u8"bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"../bar/baz/qux", u8"bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"../bar/baz/qux/", u8"bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"ほげ/ぴよ/./ふが/../ほげら/ほげほげ",
+            u8"ほげ/ぴよ/ほげら/ほげほげ");
+  TEST_PATH(utf8::canonicalize_path, u8"ほげ/ぴよ/./ふが/../ほげら/ほげほげ/",
+            u8"ほげ/ぴよ/ほげら/ほげほげ");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/bar/baz/qux",
+            u8"/foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/bar/baz/qux/",
+            u8"/foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/./baz/qux", u8"/foo/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/./baz/qux/", u8"/foo/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/../baz/qux", u8"/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/../baz/qux/", u8"/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/./baz/../qux", u8"/foo/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/./baz/../qux/", u8"/foo/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/./../baz/qux", u8"/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/foo/./../baz/qux/", u8"/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/./bar/baz/qux", u8"/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/./bar/baz/qux/", u8"/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/../bar/baz/qux", u8"/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/../bar/baz/qux/", u8"/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"/ほげ/ぴよ/./ふが/../ほげら/ほげほげ",
+            u8"/ほげ/ぴよ/ほげら/ほげほげ");
+  TEST_PATH(utf8::canonicalize_path, u8"/ほげ/ぴよ/./ふが/../ほげら/ほげほげ/",
+            u8"/ほげ/ぴよ/ほげら/ほげほげ");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/bar/baz/qux",
+            u8"X:/foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/bar/baz/qux/",
+            u8"X:/foo/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/./baz/qux", u8"X:/foo/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/./baz/qux/", u8"X:/foo/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/../baz/qux", u8"X:/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/../baz/qux/", u8"X:/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/./baz/../qux", u8"X:/foo/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/./baz/../qux/", u8"X:/foo/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/./../baz/qux", u8"X:/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/foo/./../baz/qux/", u8"X:/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/./bar/baz/qux", u8"X:/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/./bar/baz/qux/", u8"X:/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/../bar/baz/qux", u8"X:/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/../bar/baz/qux/",
+            u8"X:/bar/baz/qux");
+  TEST_PATH(utf8::canonicalize_path, u8"X:/ほげ/ぴよ/./ふが/../ほげら/ほげほげ",
+            u8"X:/ほげ/ぴよ/ほげら/ほげほげ");
+  TEST_PATH(utf8::canonicalize_path,
+            u8"X:/ほげ/ぴよ/./ふが/../ほげら/ほげほげ/",
+            u8"X:/ほげ/ぴよ/ほげら/ほげほげ");
 }
 
 // TODO(gibbed): canonicalize_guest_path

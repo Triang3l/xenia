@@ -49,13 +49,8 @@ std::string_view::size_type find_first_of(const std::string_view haystack,
 std::string_view::size_type find_first_of_case(const std::string_view haystack,
                                                const std::string_view needle);
 
-bool starts_with(const std::string_view haystack,
-                 const std::string_view needle);
-
 bool starts_with_case(const std::string_view haystack,
                       const std::string_view needle);
-
-bool ends_with(const std::string_view haystack, const std::string_view needle);
 
 bool ends_with_case(const std::string_view haystack,
                     const std::string_view needle);
