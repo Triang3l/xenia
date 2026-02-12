@@ -27,8 +27,6 @@
 #include "xenia/hid/input_system.h"
 #include "xenia/ui/imgui_dialog.h"
 #include "xenia/ui/imgui_drawer.h"
-#include "xenia/ui/immediate_drawer.h"
-#include "xenia/ui/presenter.h"
 #include "xenia/ui/virtual_key.h"
 #include "xenia/ui/vulkan/vulkan_provider.h"
 #include "xenia/ui/window.h"
@@ -109,11 +107,8 @@ class HidDemoApp final : public ui::WindowedApp {
                              bool clear_log) const;
 
   HidDemoWindowListener window_listener_;
-  std::unique_ptr<ui::GraphicsProvider> graphics_provider_;
   std::unique_ptr<ui::Window> window_;
   std::unique_ptr<InputSystem> input_system_;
-  std::unique_ptr<ui::Presenter> presenter_;
-  std::unique_ptr<ui::ImmediateDrawer> immediate_drawer_;
   std::unique_ptr<ui::ImGuiDrawer> imgui_drawer_;
   std::unique_ptr<HidDemoDialog> demo_dialog_;
 
@@ -170,13 +165,6 @@ std::vector<std::unique_ptr<hid::InputDriver>> HidDemoApp::CreateInputDrivers(
 }
 
 bool HidDemoApp::OnInitialize() {
-  // Create the graphics provider that provides the presenter for the window.
-  graphics_provider_ = xe::ui::vulkan::VulkanProvider::Create(false, true);
-  if (!graphics_provider_) {
-    XELOGE("Failed to initialize the graphics provider");
-    return false;
-  }
-
   // Create and configure the window.
   window_ = xe::ui::Window::Create(app_context(), GetName(),
                                    COL_WIDTH_STATE + COL_WIDTH_STROKE,
@@ -197,23 +185,9 @@ bool HidDemoApp::OnInitialize() {
   }
 
   // Setup drawing to the window.
-  presenter_ = graphics_provider_->CreatePresenter();
-  if (!presenter_) {
-    XELOGE("Failed to initialize the presenter");
-    return false;
-  }
-  immediate_drawer_ = graphics_provider_->CreateImmediateDrawer();
-  if (!immediate_drawer_) {
-    XELOGE("Failed to initialize the immediate drawer");
-    return false;
-  }
-  immediate_drawer_->SetPresenter(presenter_.get());
   imgui_drawer_ =
       std::make_unique<ui::ImGuiDrawer>(window_.get(), kZOrderImGui);
-  imgui_drawer_->SetPresenterAndImmediateDrawer(presenter_.get(),
-                                                immediate_drawer_.get());
   demo_dialog_ = std::make_unique<HidDemoDialog>(imgui_drawer_.get(), *this);
-  window_->SetPresenter(presenter_.get());
 
   return true;
 }

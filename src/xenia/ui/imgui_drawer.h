@@ -16,8 +16,6 @@
 #include <optional>
 #include <vector>
 
-#include "xenia/ui/immediate_drawer.h"
-#include "xenia/ui/presenter.h"
 #include "xenia/ui/window.h"
 #include "xenia/ui/window_listener.h"
 
@@ -42,17 +40,6 @@ class ImGuiDrawer : public WindowInputListener, public UIDrawer {
   void AddDialog(ImGuiDialog* dialog);
   void RemoveDialog(ImGuiDialog* dialog);
 
-  // SetPresenter may be called from the destructor.
-  void SetPresenter(Presenter* new_presenter);
-  void SetImmediateDrawer(ImmediateDrawer* new_immediate_drawer);
-  void SetPresenterAndImmediateDrawer(Presenter* new_presenter,
-                                      ImmediateDrawer* new_immediate_drawer) {
-    SetPresenter(new_presenter);
-    SetImmediateDrawer(new_immediate_drawer);
-  }
-
-  void Draw(UIDrawContext& ui_draw_context) override;
-
  protected:
   void OnKeyDown(KeyEvent& e) override;
   void OnKeyUp(KeyEvent& e) override;
@@ -66,10 +53,6 @@ class ImGuiDrawer : public WindowInputListener, public UIDrawer {
 
  private:
   void Initialize();
-
-  void SetupFontTexture();
-
-  void RenderDrawLists(ImDrawData* data, UIDrawContext& ui_draw_context);
 
   void ClearInput();
   void OnKey(KeyEvent& e, bool is_down);
@@ -93,13 +76,6 @@ class ImGuiDrawer : public WindowInputListener, public UIDrawer {
   // range that would be invalidated.
   // SIZE_MAX if not currently in the dialog loop.
   size_t dialog_loop_next_index_ = SIZE_MAX;
-
-  Presenter* presenter_ = nullptr;
-
-  ImmediateDrawer* immediate_drawer_ = nullptr;
-  // Resources specific to an immediate drawer - must be destroyed before
-  // detaching the presenter.
-  std::unique_ptr<ImmediateTexture> font_texture_;
 
   // If there's an active pointer, the ImGui mouse is controlled by this touch.
   // If it's TouchEvent::kPointerIDNone, the ImGui mouse is controlled by the

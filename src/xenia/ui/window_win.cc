@@ -84,7 +84,7 @@ bool Win32Window::OpenImpl() {
     wcex.hIcon = LoadIconW(hinstance, L"MAINICON");
     wcex.hIconSm = nullptr;  // LoadIconW(hinstance, L"MAINICON");
     wcex.hCursor = arrow_cursor_;
-    // Matches the black background color of the presenter's painting.
+    // Matches the display letterbox color.
     wcex.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = L"XeniaWindowClass";

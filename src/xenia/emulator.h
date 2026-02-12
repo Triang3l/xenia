@@ -33,9 +33,6 @@ class ExportResolver;
 class Processor;
 class ThreadState;
 }  // namespace cpu
-namespace gpu {
-class GraphicsSystem;
-}  // namespace gpu
 namespace hid {
 class InputDriver;
 class InputSystem;
@@ -134,11 +131,6 @@ class Emulator {
   // Audio hardware emulation for decoding and playback.
   apu::AudioSystem* audio_system() const { return audio_system_.get(); }
 
-  // GPU emulation for command list processing.
-  gpu::GraphicsSystem* graphics_system() const {
-    return graphics_system_.get();
-  }
-
   // Human-interface Device (HID) adapters for controllers.
   hid::InputSystem* input_system() const { return input_system_.get(); }
 
@@ -164,8 +156,6 @@ class Emulator {
       bool require_cpu_backend,
       std::function<std::unique_ptr<apu::AudioSystem>(cpu::Processor*)>
           audio_system_factory,
-      std::function<std::unique_ptr<gpu::GraphicsSystem>()>
-          graphics_system_factory,
       std::function<std::vector<std::unique_ptr<hid::InputDriver>>(ui::Window*)>
           input_driver_factory);
 
@@ -202,7 +192,6 @@ class Emulator {
 
  public:
   xe::Delegate<uint32_t, const std::string_view> on_launch;
-  xe::Delegate<bool> on_shader_storage_initialization;
   xe::Delegate<> on_terminate;
   xe::Delegate<> on_exit;
 
@@ -233,7 +222,6 @@ class Emulator {
 
   std::unique_ptr<cpu::Processor> processor_;
   std::unique_ptr<apu::AudioSystem> audio_system_;
-  std::unique_ptr<gpu::GraphicsSystem> graphics_system_;
   std::unique_ptr<hid::InputSystem> input_system_;
 
   std::unique_ptr<cpu::ExportResolver> export_resolver_;

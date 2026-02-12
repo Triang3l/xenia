@@ -30,7 +30,6 @@
 #include "xenia/cpu/backend/null_backend.h"
 #include "xenia/cpu/cpu_flags.h"
 #include "xenia/cpu/thread_state.h"
-#include "xenia/gpu/graphics_system.h"
 #include "xenia/hid/input_driver.h"
 #include "xenia/hid/input_system.h"
 #include "xenia/kernel/kernel_state.h"
@@ -96,7 +95,6 @@ Emulator::Emulator(const std::filesystem::path& command_line,
       display_window_(nullptr),
       memory_(),
       audio_system_(),
-      graphics_system_(),
       input_system_(),
       export_resolver_(),
       file_system_(),
@@ -111,15 +109,11 @@ Emulator::~Emulator() {
   // Note that we delete things in the reverse order they were initialized.
 
   // Give the systems time to shutdown before we delete them.
-  if (graphics_system_) {
-    graphics_system_->Shutdown();
-  }
   if (audio_system_) {
     audio_system_->Shutdown();
   }
 
   input_system_.reset();
-  graphics_system_.reset();
   audio_system_.reset();
 
   kernel_state_.reset();
@@ -137,8 +131,6 @@ X_STATUS Emulator::Setup(
     bool require_cpu_backend,
     std::function<std::unique_ptr<apu::AudioSystem>(cpu::Processor*)>
         audio_system_factory,
-    std::function<std::unique_ptr<gpu::GraphicsSystem>()>
-        graphics_system_factory,
     std::function<std::vector<std::unique_ptr<hid::InputDriver>>(ui::Window*)>
         input_driver_factory) {
   X_STATUS result = X_STATUS_UNSUCCESSFUL;
@@ -199,12 +191,6 @@ X_STATUS Emulator::Setup(
     }
   }
 
-  // Initialize the GPU.
-  graphics_system_ = graphics_system_factory();
-  if (!graphics_system_) {
-    return X_STATUS_NOT_IMPLEMENTED;
-  }
-
   // Initialize the HID.
   input_system_ = std::make_unique<xe::hid::InputSystem>(display_window_);
   if (!input_system_) {
@@ -232,13 +218,6 @@ X_STATUS Emulator::Setup(
   kernel_state_ = std::make_unique<xe::kernel::KernelState>(this);
 
   // Setup the core components.
-  result = graphics_system_->Setup(
-      processor_.get(), kernel_state_.get(),
-      display_window_ ? &display_window_->app_context() : nullptr,
-      display_window_ != nullptr);
-  if (result) {
-    return result;
-  }
 
   if (audio_system_) {
     result = audio_system_->Setup(kernel_state_.get());
@@ -379,7 +358,6 @@ void Emulator::Pause() {
   paused_ = true;
 
   // Don't hold the lock on this (so any waits follow through)
-  graphics_system_->Pause();
   audio_system_->Pause();
 
   auto lock = global_critical_region::AcquireDirect();
@@ -410,7 +388,6 @@ void Emulator::Resume() {
   paused_ = false;
   XELOGD("! EMULATOR RESUMED !");
 
-  graphics_system_->Resume();
   audio_system_->Resume();
 
   auto threads =
@@ -448,7 +425,6 @@ bool Emulator::SaveToFile(const std::filesystem::path& path) {
   // It's important we don't hold the global lock here! XThreads need to step
   // forward (possibly through guarded regions) without worry!
   processor_->Save(&stream);
-  graphics_system_->Save(&stream);
   audio_system_->Save(&stream);
   kernel_state_->Save(&stream);
   memory_->Save(&stream);
@@ -493,10 +469,6 @@ bool Emulator::RestoreFromFile(const std::filesystem::path& path) {
 
   if (!processor_->Restore(&stream)) {
     XELOGE("Could not restore processor!");
-    return false;
-  }
-  if (!graphics_system_->Restore(&stream)) {
-    XELOGE("Could not restore graphics system!");
     return false;
   }
   if (!audio_system_->Restore(&stream)) {
@@ -822,15 +794,6 @@ X_STATUS Emulator::CompleteLaunch(const std::filesystem::path& path,
       }
     }
   }
-
-  // Initializing the shader storage in a blocking way so the user doesn't miss
-  // the initial seconds - for instance, sound from an intro video may start
-  // playing before the video can be seen if doing this in parallel with the
-  // main thread.
-  on_shader_storage_initialization(true);
-  graphics_system_->InitializeShaderStorage(cache_root_, title_id_.value(),
-                                            true);
-  on_shader_storage_initialization(false);
 
   auto main_thread = kernel_state_->LaunchModule(module);
   if (!main_thread) {

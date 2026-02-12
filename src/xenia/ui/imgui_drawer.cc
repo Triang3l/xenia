@@ -38,7 +38,6 @@ ImGuiDrawer::ImGuiDrawer(xe::ui::Window* window, size_t z_order)
 }
 
 ImGuiDrawer::~ImGuiDrawer() {
-  SetPresenter(nullptr);
   if (!dialogs_.empty()) {
     window_->RemoveInputListener(this);
     if (internal_state_) {
@@ -68,9 +67,6 @@ void ImGuiDrawer::AddDialog(ImGuiDialog* dialog) {
     // a dialog's Draw function, re-registering the ImGuiDrawer may result in
     // ImGui being drawn multiple times in the current frame.
     window_->AddInputListener(this, z_order_);
-    if (presenter_) {
-      presenter_->AddUIDrawerFromUIThread(this, z_order_);
-    }
   }
   dialogs_.push_back(dialog);
 }
@@ -216,155 +212,6 @@ std::optional<ImGuiKey> ImGuiDrawer::VirtualKeyToImGuiKey(VirtualKey vkey) {
   } else {
     return std::nullopt;
   }
-}
-
-void ImGuiDrawer::SetupFontTexture() {
-  if (font_texture_ || !immediate_drawer_) {
-    return;
-  }
-  ImGuiIO& io = GetIO();
-  unsigned char* pixels;
-  int width, height;
-  io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-  font_texture_ = immediate_drawer_->CreateTexture(
-      width, height, ImmediateTextureFilter::kLinear, true,
-      reinterpret_cast<uint8_t*>(pixels));
-  io.Fonts->TexID = reinterpret_cast<ImTextureID>(font_texture_.get());
-}
-
-void ImGuiDrawer::SetPresenter(Presenter* new_presenter) {
-  if (presenter_) {
-    if (presenter_ == new_presenter) {
-      return;
-    }
-    if (!dialogs_.empty()) {
-      presenter_->RemoveUIDrawerFromUIThread(this);
-    }
-    ImGuiIO& io = GetIO();
-  }
-  presenter_ = new_presenter;
-  if (presenter_) {
-    if (!dialogs_.empty()) {
-      presenter_->AddUIDrawerFromUIThread(this, z_order_);
-    }
-  }
-}
-
-void ImGuiDrawer::SetImmediateDrawer(ImmediateDrawer* new_immediate_drawer) {
-  if (immediate_drawer_ == new_immediate_drawer) {
-    return;
-  }
-  if (immediate_drawer_) {
-    GetIO().Fonts->TexID = static_cast<ImTextureID>(nullptr);
-    font_texture_.reset();
-  }
-  immediate_drawer_ = new_immediate_drawer;
-  if (immediate_drawer_) {
-    SetupFontTexture();
-  }
-}
-
-void ImGuiDrawer::Draw(UIDrawContext& ui_draw_context) {
-  // Drawing of anything is initiated by the presenter.
-  assert_not_null(presenter_);
-  if (!immediate_drawer_) {
-    // A presenter has been attached, but an immediate drawer hasn't been
-    // attached yet.
-    return;
-  }
-
-  if (dialogs_.empty()) {
-    return;
-  }
-
-  ImGui::SetCurrentContext(internal_state_);
-
-  ImGuiIO& io = ImGui::GetIO();
-
-  uint64_t current_frame_time_ticks = Clock::QueryHostTickCount();
-  io.DeltaTime =
-      float(double(current_frame_time_ticks - last_frame_time_ticks_) /
-            frame_time_tick_frequency_);
-  if (!(io.DeltaTime > 0.0f) ||
-      current_frame_time_ticks < last_frame_time_ticks_) {
-    // For safety as Dear ImGui doesn't allow non-positive DeltaTime. Using the
-    // same default value as in the official samples.
-    io.DeltaTime = 1.0f / 60.0f;
-  }
-  last_frame_time_ticks_ = current_frame_time_ticks;
-
-  float physical_to_logical =
-      float(window_->GetMediumDpi()) / float(window_->GetDpi());
-  io.DisplaySize.x = window_->GetActualPhysicalWidth() * physical_to_logical;
-  io.DisplaySize.y = window_->GetActualPhysicalHeight() * physical_to_logical;
-
-  ImGui::NewFrame();
-
-  assert_true(!IsDrawingDialogs());
-  dialog_loop_next_index_ = 0;
-  while (dialog_loop_next_index_ < dialogs_.size()) {
-    dialogs_[dialog_loop_next_index_++]->Draw();
-  }
-  dialog_loop_next_index_ = SIZE_MAX;
-
-  ImGui::Render();
-  ImDrawData* draw_data = ImGui::GetDrawData();
-  if (draw_data) {
-    RenderDrawLists(draw_data, ui_draw_context);
-  }
-
-  if (reset_mouse_position_after_next_frame_) {
-    reset_mouse_position_after_next_frame_ = false;
-    io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
-  }
-
-  // Detaching is deferred if the last dialog is removed during drawing, perform
-  // it now if needed.
-  DetachIfLastDialogRemoved();
-
-  if (!dialogs_.empty()) {
-    // Repaint (and handle input) continuously if still active.
-    presenter_->RequestUIPaintFromUIThread();
-  }
-}
-
-void ImGuiDrawer::RenderDrawLists(ImDrawData* data,
-                                  UIDrawContext& ui_draw_context) {
-  ImGuiIO& io = ImGui::GetIO();
-
-  immediate_drawer_->Begin(ui_draw_context, io.DisplaySize.x, io.DisplaySize.y);
-
-  for (int i = 0; i < data->CmdListsCount; ++i) {
-    const auto cmd_list = data->CmdLists[i];
-
-    ImmediateDrawBatch batch;
-    batch.vertices =
-        reinterpret_cast<ImmediateVertex*>(cmd_list->VtxBuffer.Data);
-    batch.vertex_count = cmd_list->VtxBuffer.size();
-    batch.indices = cmd_list->IdxBuffer.Data;
-    batch.index_count = cmd_list->IdxBuffer.size();
-    immediate_drawer_->BeginDrawBatch(batch);
-
-    for (int j = 0; j < cmd_list->CmdBuffer.size(); ++j) {
-      const auto& cmd = cmd_list->CmdBuffer[j];
-
-      ImmediateDraw draw;
-      draw.primitive_type = ImmediatePrimitiveType::kTriangles;
-      draw.count = cmd.ElemCount;
-      draw.index_offset = cmd.IdxOffset;
-      draw.texture = reinterpret_cast<ImmediateTexture*>(cmd.TextureId);
-      draw.scissor = true;
-      draw.scissor_left = cmd.ClipRect.x;
-      draw.scissor_top = cmd.ClipRect.y;
-      draw.scissor_right = cmd.ClipRect.z;
-      draw.scissor_bottom = cmd.ClipRect.w;
-      immediate_drawer_->Draw(draw);
-    }
-
-    immediate_drawer_->EndDrawBatch();
-  }
-
-  immediate_drawer_->End();
 }
 
 ImGuiIO& ImGuiDrawer::GetIO() {
@@ -554,9 +401,6 @@ void ImGuiDrawer::DetachIfLastDialogRemoved() {
   // times in the current frame.
   if (!dialogs_.empty() || IsDrawingDialogs()) {
     return;
-  }
-  if (presenter_) {
-    presenter_->RemoveUIDrawerFromUIThread(this);
   }
   window_->RemoveInputListener(this);
   // Clear all input since no input will be received anymore, and when the

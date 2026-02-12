@@ -17,7 +17,6 @@
 #include "xenia/base/clock.h"
 #include "xenia/base/logging.h"
 #include "xenia/ui/imgui_drawer.h"
-#include "xenia/ui/presenter.h"
 
 namespace xe {
 namespace ui {
@@ -34,15 +33,6 @@ Window::~Window() {
   // that was likely a mistake, so placing an assertion.
   assert_true(phase_ == Phase::kDeleting);
   EnterDestructor();
-
-  if (presenter_) {
-    Presenter* old_presenter = presenter_;
-    // Null the pointer to prevent an infinite loop between
-    // SetWindowSurfaceFromUIThread and SetPresenter calling each other.
-    presenter_ = nullptr;
-    old_presenter->SetWindowSurfaceFromUIThread(nullptr, nullptr);
-    presenter_surface_.reset();
-  }
 
   // Right before destruction has finished, after which no interaction with
   // *this can be done, notify the destruction receivers that the window is
@@ -388,46 +378,14 @@ void Window::Focus() {
   }
 }
 
-void Window::SetPresenter(Presenter* presenter) {
-  if (presenter_ == presenter) {
-    return;
-  }
-  if (presenter_) {
-    presenter_->SetWindowSurfaceFromUIThread(nullptr, nullptr);
-    presenter_surface_.reset();
-  }
-  presenter_ = presenter;
-  if (presenter_) {
-    presenter_surface_ = CreateSurface(presenter_->GetSupportedSurfaceTypes());
-    presenter_->SetWindowSurfaceFromUIThread(this, presenter_surface_.get());
-  }
-}
-
 void Window::OnSurfaceChanged(bool new_surface_potentially_exists) {
-  if (!presenter_) {
-    return;
-  }
-
-  // Detach the presenter from the old surface before attaching to the new one.
-  if (presenter_surface_) {
-    presenter_->SetWindowSurfaceFromUIThread(this, nullptr);
-    presenter_surface_.reset();
-  }
-
-  if (!new_surface_potentially_exists) {
-    return;
-  }
-
-  presenter_surface_ = CreateSurface(presenter_->GetSupportedSurfaceTypes());
-  if (presenter_surface_) {
-    presenter_->SetWindowSurfaceFromUIThread(this, presenter_surface_.get());
-  }
+  // TODO(Triang3l): Detach and reattach drawing.
 }
 
 void Window::OnBeforeClose(WindowDestructionReceiver& destruction_receiver) {
   // Because events are not sent from closed windows, and to make sure the
-  // window isn't closed while its surface is still attached to the presenter,
-  // this must be called before doing what constitutes closing in the platform
+  // window isn't closed while its surface is still attached to painting, this
+  // must be called before doing what constitutes closing in the platform
   // implementation, not after.
 
   bool was_open = phase_ == Phase::kOpen;
@@ -487,10 +445,7 @@ void Window::OnDpiChanged(UISetupEvent& e,
 }
 
 void Window::OnMonitorUpdate(MonitorUpdateEvent& e) {
-  if (presenter_surface_) {
-    presenter_->OnSurfaceMonitorUpdateFromUIThread(
-        e.old_monitor_potentially_disconnected());
-  }
+  // TODO(Triang3l): OnMonitorUpdate (for host UI drawing pacing).
 }
 
 bool Window::OnActualSizeUpdate(
@@ -502,10 +457,6 @@ bool Window::OnActualSizeUpdate(
   }
   actual_physical_width_ = new_physical_width;
   actual_physical_height_ = new_physical_height;
-  // The listeners may reference the presenter, update the presenter first.
-  if (presenter_surface_) {
-    presenter_->OnSurfaceResizeFromUIThread();
-  }
   UISetupEvent e(this);
   SendEventToListeners([&e](auto listener) { listener->OnResize(e); },
                        destruction_receiver);
@@ -539,9 +490,7 @@ void Window::OnPaint(bool force_paint) {
     return;
   }
   is_painting_ = true;
-  if (presenter_surface_) {
-    presenter_->PaintFromUIThread(force_paint);
-  }
+  // TODO(Triang3l): Paint.
   is_painting_ = false;
 }
 

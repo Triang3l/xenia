@@ -22,7 +22,6 @@
 #include "xenia/ui/imgui_drawer.h"
 #include "xenia/ui/immediate_drawer.h"
 #include "xenia/ui/menu_item.h"
-#include "xenia/ui/presenter.h"
 #include "xenia/ui/window.h"
 #include "xenia/ui/windowed_app_context.h"
 #include "xenia/xbox.h"
@@ -110,8 +109,6 @@ class DebugWindow : public cpu::DebugListener {
   cpu::Processor* processor_ = nullptr;
   xe::ui::WindowedAppContext& app_context_;
   std::unique_ptr<xe::ui::Window> window_;
-  std::unique_ptr<xe::ui::Presenter> presenter_;
-  std::unique_ptr<xe::ui::ImmediateDrawer> immediate_drawer_;
   std::unique_ptr<xe::ui::ImGuiDrawer> imgui_drawer_;
   std::unique_ptr<DebugDialog> debug_dialog_;
 

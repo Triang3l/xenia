@@ -19,7 +19,6 @@
 
 #include "xenia/base/platform.h"
 #include "xenia/ui/menu_item.h"
-#include "xenia/ui/presenter.h"
 #include "xenia/ui/surface.h"
 #include "xenia/ui/ui_event.h"
 #include "xenia/ui/virtual_key.h"
@@ -332,21 +331,12 @@ class Window {
   // not implemented to avoid platform-specific complexities regarding
   // maximization, DPI, etc.
 
-  void SetPresenter(Presenter* presenter);
-
   // Request repainting of the surface. Can be called from non-UI threads as
   // long as they know the Surface exists and isn't in the middle of being
   // changed to another (the synchronization of this fact between the UI thread
   // and the caller thread must be done externally through OnSurfaceChanged).
   void RequestPaint() {
-    if (presenter_surface_) {
-      RequestPaintImpl();
-    }
-  }
-  void RequestPresenterUIPaintFromUIThread() {
-    if (presenter_) {
-      presenter_->RequestUIPaintFromUIThread();
-    }
+    // TODO(Triang3l): RequestPaint.
   }
 
  protected:
@@ -528,8 +518,6 @@ class Window {
   // closed window is always assumed to be not in focus).
   virtual void FocusImpl() {}
 
-  Presenter* presenter() const { return presenter_; }
-  bool HasSurface() const { return presenter_surface_ != nullptr; }
   // If new_surface_potentially_exists is false, creation of the new surface for
   // the window won't be updated, and it may be called from the destructor (via
   // EnterDestructor to destroy the surface before destroying what it depends
@@ -684,7 +672,7 @@ class Window {
   // Ordered by the Z order, and then by the time of addition (but executed in
   // reverse order).
   // Note: All the iteration logic involving this Z ordering must be the same as
-  // in drawing (in the UI drawers in the Presenter), but in reverse.
+  // in drawing, but in reverse.
   std::multimap<size_t, WindowInputListener*> input_listeners_;
   // Linked list-based stacks of the contexts of the listener iterations
   // currently being done, usually allocated on the stack.
@@ -711,12 +699,10 @@ class Window {
 
   bool has_focus_ = false;
 
-  Presenter* presenter_ = nullptr;
-  std::unique_ptr<Surface> presenter_surface_;
   // Whether currently in InPaint to prevent recursive painting in case it's
   // triggered somehow from within painting again, because painting is much more
   // complex than just a small state update, and recursive painting is
-  // completely unsupported by the Presenter.
+  // completely unsupported within Xenia.
   bool is_painting_ = false;
 };
 

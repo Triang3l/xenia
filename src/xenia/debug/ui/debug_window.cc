@@ -32,8 +32,6 @@
 #include "xenia/kernel/xthread.h"
 #include "xenia/ui/graphics_provider.h"
 #include "xenia/ui/imgui_drawer.h"
-#include "xenia/ui/immediate_drawer.h"
-#include "xenia/ui/presenter.h"
 #include "xenia/ui/windowed_app_context.h"
 
 DEFINE_bool(imgui_debug, false, "Show ImGui debugging tools.", "UI");
@@ -111,33 +109,12 @@ bool DebugWindow::Initialize() {
 
   // Setup drawing to the window.
 
-  xe::ui::GraphicsProvider& graphics_provider =
-      *emulator_->graphics_system()->provider();
-
-  presenter_ = graphics_provider.CreatePresenter();
-  if (!presenter_) {
-    XELOGE("Failed to initialize the presenter for the debugger");
-    return false;
-  }
-
-  immediate_drawer_ = graphics_provider.CreateImmediateDrawer();
-  if (!immediate_drawer_) {
-    XELOGE("Failed to initialize the immediate drawer for the debugger");
-    return false;
-  }
-  immediate_drawer_->SetPresenter(presenter_.get());
-
   imgui_drawer_ = std::make_unique<xe::ui::ImGuiDrawer>(window_.get(), 0);
-  imgui_drawer_->SetPresenterAndImmediateDrawer(presenter_.get(),
-                                                immediate_drawer_.get());
   debug_dialog_ =
       std::unique_ptr<DebugDialog>(new DebugDialog(imgui_drawer_.get(), *this));
 
   // Update the cache before the first frame.
   UpdateCache();
-
-  // Begin drawing.
-  window_->SetPresenter(presenter_.get());
 
   return true;
 }

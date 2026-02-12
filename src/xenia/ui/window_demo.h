@@ -16,8 +16,6 @@
 #include "xenia/ui/graphics_provider.h"
 #include "xenia/ui/imgui_dialog.h"
 #include "xenia/ui/imgui_drawer.h"
-#include "xenia/ui/immediate_drawer.h"
-#include "xenia/ui/presenter.h"
 #include "xenia/ui/window.h"
 #include "xenia/ui/window_listener.h"
 #include "xenia/ui/windowed_app.h"
@@ -65,8 +63,6 @@ class WindowDemoApp : public WindowedApp {
   WindowDemoWindowListener window_listener_;
   std::unique_ptr<GraphicsProvider> graphics_provider_;
   std::unique_ptr<Window> window_;
-  std::unique_ptr<Presenter> presenter_;
-  std::unique_ptr<ImmediateDrawer> immediate_drawer_;
   std::unique_ptr<ImGuiDrawer> imgui_drawer_;
   std::unique_ptr<WindowDemoDialog> demo_dialog_;
 };

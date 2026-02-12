@@ -157,6 +157,7 @@ void MicroprofileDrawer::SetupFont() {
     font_description_.char_offsets[i] = (i - '{') * 8 + 721 + 8;
   }
 
+#if 0
   // Unpack font bitmap into an RGBA texture.
   const int kUnpackedSize = kFontTextureWidth * kFontTextureHeight * 4;
   uint32_t unpacked[kUnpackedSize];
@@ -169,22 +170,7 @@ void MicroprofileDrawer::SetupFont() {
       b <<= 1;
     }
   }
-
-  font_texture_ = immediate_drawer_->CreateTexture(
-      kFontTextureWidth, kFontTextureHeight, ImmediateTextureFilter::kNearest,
-      false, reinterpret_cast<uint8_t*>(unpacked));
-}
-
-void MicroprofileDrawer::Begin(UIDrawContext& ui_draw_context,
-                               uint32_t coordinate_space_width,
-                               uint32_t coordinate_space_height) {
-  immediate_drawer_->Begin(ui_draw_context, float(coordinate_space_width),
-                           float(coordinate_space_height));
-}
-
-void MicroprofileDrawer::End() {
-  Flush();
-  immediate_drawer_->End();
+#endif
 }
 
 ImmediateVertex* MicroprofileDrawer::BeginVertices(
@@ -206,18 +192,7 @@ void MicroprofileDrawer::Flush() {
     return;
   }
 
-  ImmediateDrawBatch batch;
-  batch.vertices = vertices_.data();
-  batch.vertex_count = vertex_count_;
-  immediate_drawer_->BeginDrawBatch(batch);
-
-  ImmediateDraw draw;
-  draw.primitive_type = current_primitive_type_;
-  draw.count = vertex_count_;
-  draw.texture = font_texture_.get();
-  immediate_drawer_->Draw(draw);
-
-  immediate_drawer_->EndDrawBatch();
+  // TODO(Triang3l): Draw.
 
   vertex_count_ = 0;
 }

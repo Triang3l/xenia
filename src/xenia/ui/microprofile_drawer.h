@@ -29,9 +29,6 @@ class MicroprofileDrawer {
   // Initially hidden.
   MicroprofileDrawer(ImmediateDrawer* immediate_drawer);
 
-  void Begin(UIDrawContext& ui_draw_context, uint32_t coordinate_space_width,
-             uint32_t coordinate_space_height);
-  void End();
   void DrawBox(int x0, int y0, int x1, int y1, uint32_t color, BoxType type);
   void DrawLine2D(uint32_t count, float* vertices, uint32_t color);
   // The name DrawTextString collides with DrawText in Windows.
@@ -41,18 +38,13 @@ class MicroprofileDrawer {
  protected:
   void SetupFont();
 
-  ImmediateVertex* BeginVertices(ImmediatePrimitiveType primitive_type,
-                                 int count);
   void EndVertices();
   void Flush();
 
   ImmediateDrawer* immediate_drawer_;
 
-  std::vector<ImmediateVertex> vertices_;
   int vertex_count_ = 0;
-  ImmediatePrimitiveType current_primitive_type_;
 
-  std::unique_ptr<ImmediateTexture> font_texture_;
   struct {
     uint16_t char_offsets[256];
   } font_description_ = {{0}};

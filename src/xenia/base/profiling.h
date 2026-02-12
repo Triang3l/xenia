@@ -35,9 +35,7 @@
 
 namespace xe {
 namespace ui {
-class ImmediateDrawer;
 class MicroprofileDrawer;
-class Presenter;
 class Window;
 }  // namespace ui
 }  // namespace xe
@@ -182,11 +180,8 @@ class Profiler {
   static void ToggleDisplay();
   static void TogglePause();
 
-  // Initializes input for the given window and drawing for the given presenter
-  // and immediate drawer.
-  static void SetUserIO(size_t z_order, ui::Window* window,
-                        ui::Presenter* presenter,
-                        ui::ImmediateDrawer* immediate_drawer);
+  // Initializes input for the given window.
+  static void SetUserIO(size_t z_order, ui::Window* window);
   // Gets the current drawer, if any.
   static ui::MicroprofileDrawer* drawer() {
 #if XE_OPTION_PROFILING_UI
@@ -233,7 +228,6 @@ class Profiler {
   static ui::Window* window_;
 #if XE_OPTION_PROFILING_UI
   static ProfilerUIDrawer ui_drawer_;
-  static ui::Presenter* presenter_;
   static std::unique_ptr<ui::MicroprofileDrawer> drawer_;
   static bool dpi_scaling_;
 #endif  // XE_OPTION_PROFILING_UI

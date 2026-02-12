@@ -62,7 +62,6 @@ size_t Profiler::z_order_ = 0;
 ui::Window* Profiler::window_ = nullptr;
 #if XE_OPTION_PROFILING_UI
 Profiler::ProfilerUIDrawer Profiler::ui_drawer_;
-ui::Presenter* Profiler::presenter_ = nullptr;
 std::unique_ptr<ui::MicroprofileDrawer> Profiler::drawer_;
 bool Profiler::dpi_scaling_ = false;
 #endif  // XE_OPTION_PROFILING_UI
@@ -111,7 +110,7 @@ void Profiler::Dump() {
 }
 
 void Profiler::Shutdown() {
-  SetUserIO(0, nullptr, nullptr, nullptr);
+  SetUserIO(0, nullptr);
   window_ = nullptr;
   MicroProfileShutdown();
 }
@@ -219,27 +218,12 @@ void Profiler::ToggleDisplay() {
         window_->AddInputListener(&input_listener_, z_order_);
       }
     }
-#if XE_OPTION_PROFILING_UI
-    if (presenter_) {
-      if (was_visible) {
-        presenter_->RemoveUIDrawerFromUIThread(&ui_drawer_);
-      } else {
-        presenter_->AddUIDrawerFromUIThread(&ui_drawer_, z_order_);
-      }
-    }
-#endif  // XE_OPTION_PROFILING_UI
   }
 }
 
-void Profiler::SetUserIO(size_t z_order, ui::Window* window,
-                         ui::Presenter* presenter,
-                         ui::ImmediateDrawer* immediate_drawer) {
+void Profiler::SetUserIO(size_t z_order, ui::Window* window) {
 #if XE_OPTION_PROFILING_UI
-  if (presenter_ && is_visible()) {
-    presenter_->RemoveUIDrawerFromUIThread(&ui_drawer_);
-  }
   drawer_.reset();
-  presenter_ = nullptr;
 #endif  // XE_OPTION_PROFILING_UI
 
   if (window_) {
@@ -256,20 +240,8 @@ void Profiler::SetUserIO(size_t z_order, ui::Window* window,
   z_order_ = z_order;
   window_ = window;
 
-#if XE_OPTION_PROFILING_UI
-  if (presenter && immediate_drawer) {
-    presenter_ = presenter;
-    drawer_ = std::make_unique<ui::MicroprofileDrawer>(immediate_drawer);
-  }
-#endif  // XE_OPTION_PROFILING_UI
-
   if (is_visible()) {
     window_->AddInputListener(&input_listener_, z_order_);
-#if XE_OPTION_PROFILING_UI
-    if (presenter_) {
-      presenter_->AddUIDrawerFromUIThread(&ui_drawer_, z_order_);
-    }
-#endif  // XE_OPTION_PROFILING_UI
   }
 }
 
@@ -282,7 +254,7 @@ void Profiler::Flip() {
 
 #if XE_OPTION_PROFILING_UI
 void Profiler::ProfilerUIDrawer::Draw(ui::UIDrawContext& ui_draw_context) {
-  if (!window_ || !presenter_ || !drawer_) {
+  if (!window_ || !drawer_) {
     return;
   }
   SCOPE_profile_cpu_f("internal");
@@ -292,14 +264,9 @@ void Profiler::ProfilerUIDrawer::Draw(ui::UIDrawContext& ui_draw_context) {
   uint32_t coordinate_space_height = dpi_scaling_
                                          ? window_->GetActualLogicalHeight()
                                          : window_->GetActualPhysicalHeight();
-  drawer_->Begin(ui_draw_context, coordinate_space_width,
-                 coordinate_space_height);
+#if 0
   MicroProfileDraw(coordinate_space_width, coordinate_space_height);
-  drawer_->End();
-  // Continuous repaint.
-  if (is_visible()) {
-    presenter_->RequestUIPaintFromUIThread();
-  }
+#endif
 }
 #endif  // XE_OPTION_PROFILING_UI
 
@@ -321,11 +288,6 @@ void Profiler::PostInputEvent() {
   // The profiler can be hidden from within the profiler (Mode > Off).
   if (!is_visible()) {
     window_->RemoveInputListener(&input_listener_);
-#if XE_OPTION_PROFILING_UI
-    if (presenter_) {
-      presenter_->RemoveUIDrawerFromUIThread(&ui_drawer_);
-    }
-#endif  // XE_OPTION_PROFILING_UI
     return;
   }
   // Relying on continuous painting currently, no need to request drawing.
@@ -343,9 +305,7 @@ void Profiler::ThreadEnter(const char* name) {}
 void Profiler::ThreadExit() {}
 void Profiler::ToggleDisplay() {}
 void Profiler::TogglePause() {}
-void Profiler::SetUserIO(size_t z_order, ui::Window* window,
-                         ui::Presenter* presenter,
-                         ui::ImmediateDrawer* immediate_drawer) {}
+void Profiler::SetUserIO(size_t z_order, ui::Window* window) {}
 void Profiler::Flip() {}
 
 #endif  // XE_OPTION_PROFILING
